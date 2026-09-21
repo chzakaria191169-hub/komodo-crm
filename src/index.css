@@ -2438,55 +2438,87 @@ tbody tr:hover .col-sticky {
 
 .vault-login-box {
   position: relative;
-  width: 380px;
-  max-width: 90vw;
-  background: rgba(7, 7, 21, 0.85);
-  border: 1px solid rgba(139, 92, 246, 0.3);
-  border-radius: 16px;
+  width: 420px;
+  max-width: 92vw;
+  background: rgba(10, 10, 18, 0.92);
+  border: 1px solid rgba(245, 158, 11, 0.32);
+  border-radius: 18px;
   padding: 36px 32px;
-  box-shadow: 0 0 60px rgba(139, 92, 246, 0.15), inset 0 0 20px rgba(255, 255, 255, 0.02);
-  backdrop-filter: blur(10px);
+  box-shadow: 0 0 70px rgba(245, 158, 11, 0.14), 0 0 100px rgba(0, 0, 0, 0.8), inset 0 0 20px rgba(255, 255, 255, 0.02);
+  backdrop-filter: blur(12px);
 }
 
 .vault-login-header {
   text-align: center;
-  margin-bottom: 32px;
+  margin-bottom: 26px;
+}
+
+.vault-client-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 12px;
+  border-radius: 999px;
+  background: rgba(245, 158, 11, 0.08);
+  border: 1px solid rgba(245, 158, 11, 0.25);
+  font-family: 'Space Grotesk', monospace;
+  font-size: 10px;
+  font-weight: 600;
+  color: #f59e0b;
+  letter-spacing: 0.1em;
+  margin-bottom: 16px;
+}
+
+.vault-komodo-logo {
+  max-width: 195px;
+  height: auto;
+  display: block;
+  margin: 0 auto 14px;
+  filter: drop-shadow(0 2px 12px rgba(245, 158, 11, 0.18));
 }
 
 .vault-icon-glass {
-  width: 56px;
-  height: 56px;
-  margin: 0 auto 16px;
-  background: rgba(139, 92, 246, 0.1);
-  border: 1px solid rgba(139, 92, 246, 0.2);
+  width: 52px;
+  height: 52px;
+  margin: 0 auto 14px;
+  background: rgba(245, 158, 11, 0.1);
+  border: 1px solid rgba(245, 158, 11, 0.25);
   border-radius: 50%;
   display: flex;
   align-items: center;
   justify-content: center;
-  box-shadow: 0 0 20px rgba(139, 92, 246, 0.2);
+  box-shadow: 0 0 25px rgba(245, 158, 11, 0.25);
 }
 
 .vault-login-header h2 {
   font-family: 'Space Grotesk', sans-serif;
-  font-size: 18px;
+  font-size: 17px;
   font-weight: 700;
   color: #fff;
-  letter-spacing: 0.1em;
-  margin-bottom: 4px;
+  letter-spacing: 0.08em;
+  margin-bottom: 6px;
 }
 
-.vault-login-header p {
+.vault-header-role {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
   font-family: 'Space Grotesk', monospace;
-  font-size: 10px;
-  color: var(--red);
-  letter-spacing: 0.15em;
+  font-size: 10.5px;
+  color: #5dcaa5;
+  background: rgba(16, 185, 129, 0.08);
+  border: 1px solid rgba(16, 185, 129, 0.22);
+  padding: 4px 12px;
+  border-radius: 6px;
+  letter-spacing: 0.06em;
   font-weight: 600;
+  margin-top: 4px;
 }
 
 .vault-login-form {
   display: flex;
   flex-direction: column;
-  gap: 20px;
+  gap: 18px;
 }
 
 .vault-input-group {
@@ -2512,19 +2544,20 @@ tbody tr:hover .col-sticky {
 .vault-input-icon {
   position: absolute;
   left: 14px;
-  color: var(--purple);
-  opacity: 0.6;
+  color: #f59e0b;
+  opacity: 0.75;
 }
 
 .vault-input-wrap input {
   width: 100%;
-  background: rgba(0, 0, 0, 0.4);
-  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: rgba(0, 0, 0, 0.5);
+  border: 1px solid rgba(255, 255, 255, 0.09);
   border-radius: 8px;
   padding: 12px 14px;
   color: var(--text-1);
   font-family: monospace;
-  font-size: 14px;
+  font-size: 13.5px;
+  letter-spacing: 0.05em;
   transition: all 0.3s;
 }
 
@@ -2534,9 +2567,9 @@ tbody tr:hover .col-sticky {
 
 .vault-input-wrap input:focus {
   outline: none;
-  border-color: var(--purple);
-  background: rgba(139, 92, 246, 0.05);
-  box-shadow: 0 0 15px rgba(139, 92, 246, 0.15);
+  border-color: #f59e0b;
+  background: rgba(245, 158, 11, 0.05);
+  box-shadow: 0 0 15px rgba(245, 158, 11, 0.2);
 }
 
 .vault-eye-btn {
@@ -2557,6 +2590,17 @@ tbody tr:hover .col-sticky {
   color: var(--text-1);
 }
 
+.vault-hint {
+  font-size: 10.5px;
+  color: var(--text-2);
+  line-height: 1.4;
+  text-align: center;
+  padding: 6px 10px;
+  background: rgba(255, 255, 255, 0.02);
+  border-radius: 6px;
+  border: 1px dashed rgba(255, 255, 255, 0.08);
+}
+
 .vault-error {
   display: flex;
   align-items: center;
@@ -2571,28 +2615,33 @@ tbody tr:hover .col-sticky {
 }
 
 .vault-submit-btn {
-  margin-top: 8px;
-  background: linear-gradient(135deg, var(--purple-dim), var(--purple));
-  color: white;
+  margin-top: 4px;
+  background: linear-gradient(135deg, #f59e0b, #ea580c);
+  color: #0b0c10;
   border: none;
   padding: 14px;
   border-radius: 8px;
   font-family: 'Space Grotesk', sans-serif;
   font-size: 12px;
   font-weight: 700;
-  letter-spacing: 0.1em;
+  letter-spacing: 0.12em;
   cursor: pointer;
-  box-shadow: 0 4px 15px rgba(139, 92, 246, 0.3);
+  box-shadow: 0 4px 20px rgba(245, 158, 11, 0.35);
   transition: all 0.3s;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
 }
 
 .vault-submit-btn:hover:not(:disabled) {
   transform: translateY(-2px);
-  box-shadow: 0 6px 20px rgba(139, 92, 246, 0.5);
+  box-shadow: 0 6px 25px rgba(245, 158, 11, 0.55);
+  filter: brightness(1.08);
 }
 
 .vault-submit-btn:disabled {
-  opacity: 0.6;
+  opacity: 0.7;
   cursor: wait;
 }
 
@@ -2601,7 +2650,7 @@ tbody tr:hover .col-sticky {
   font-family: 'Space Grotesk', monospace;
   font-size: 9px;
   color: var(--text-3);
-  opacity: 0.5;
-  margin-top: 8px;
-  letter-spacing: 0.05em;
+  opacity: 0.65;
+  margin-top: 6px;
+  letter-spacing: 0.06em;
 }

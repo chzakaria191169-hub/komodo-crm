@@ -1566,11 +1566,11 @@ function InboxPage() {
 }
 
 /* ═══════════════════════════════════════════════════════════
-   VAULT LOGIN
+   VAULT LOGIN — Custom Built for Russ Warner (Komodo Systems)
    ═══════════════════════════════════════════════════════════ */
 function VaultLogin({ onLogin }) {
-  const [clientId, setClientId] = useState('');
-  const [accessKey, setAccessKey] = useState('');
+  const [clientId, setClientId] = useState('VX-KOMODO');
+  const [accessKey, setAccessKey] = useState('admin');
   const [showKey, setShowKey] = useState(false);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
@@ -1580,14 +1580,18 @@ function VaultLogin({ onLogin }) {
     setLoading(true);
     setError('');
     setTimeout(() => {
-      // Dummy check for MVP
-      if (clientId === 'VX-100' && accessKey === 'admin') {
+      const cleanId = clientId.trim().toUpperCase();
+      const cleanKey = accessKey.trim();
+      
+      // Frictionless executive access: defaults or valid tokens let Russ straight in
+      const validIds = ['VX-KOMODO', 'KOMODO', 'KOMODO-EXEC-01', 'VX-100', 'RUSS', 'ADMIN'];
+      if (validIds.includes(cleanId) || (cleanId.length > 0 && cleanKey.length > 0)) {
         onLogin();
       } else {
         setError('ACCESS DENIED. INVALID CREDENTIALS.');
         setLoading(false);
       }
-    }, 1500);
+    }, 900);
   };
 
   return (
@@ -1599,46 +1603,66 @@ function VaultLogin({ onLogin }) {
       <div className="vault-login-backdrop" />
       <SpotlightCard className="vault-login-box">
         <div className="vault-login-header">
-          <div className="vault-icon-glass">
-            <Lock size={20} style={{ color: '#A78BFA' }} />
+          <div className="vault-client-badge">
+            <span className="pulse-dot" style={{ background: '#f59e0b', boxShadow: '0 0 8px #f59e0b' }} />
+            DEDICATED INSTANCE // KOMODO SYSTEMS
           </div>
-          <h2>SECURE CLIENT PORTAL</h2>
-          <p>AUTHORIZED PERSONNEL ONLY</p>
+
+          <img 
+            src="https://cdn.prod.website-files.com/6987d45f63b86a630ed5941c/6a7cee335a1a7f48dcbdf416_Logo_komodo%20systems_white.png" 
+            alt="Komodo Systems" 
+            className="vault-komodo-logo"
+            onError={(e) => {
+              // Fallback if network blocks external CDN
+              e.currentTarget.style.display = 'none';
+            }}
+          />
+
+          <h2>KOMODO EYE® · SALES VAULT</h2>
+          <div className="vault-header-role">
+            <span style={{ width: 6, height: 6, borderRadius: '50%', background: '#5dcaa5', display: 'inline-block' }} />
+            AUTHORIZED ACCESS · RUSS WARNER (PRESIDENT & COO)
+          </div>
         </div>
 
         <form onSubmit={handleSubmit} className="vault-login-form">
           <div className="vault-input-group">
-            <label>CLIENT ID</label>
+            <label>CLIENT IDENTIFIER</label>
             <div className="vault-input-wrap">
               <input 
                 type="text" 
                 value={clientId} 
                 onChange={e => setClientId(e.target.value)}
-                placeholder="e.g. VX-8942"
+                placeholder="e.g. VX-KOMODO"
                 required
               />
             </div>
           </div>
 
           <div className="vault-input-group">
-            <label>ACCESS KEY</label>
+            <label>EXECUTIVE ACCESS KEY</label>
             <div className="vault-input-wrap">
               <Key size={14} className="vault-input-icon" />
               <input 
                 type={showKey ? 'text' : 'password'} 
                 value={accessKey} 
                 onChange={e => setAccessKey(e.target.value)}
-                placeholder="Enter secure key"
+                placeholder="Enter executive key"
                 required
               />
               <button 
                 type="button" 
                 className="vault-eye-btn" 
                 onClick={() => setShowKey(!showKey)}
+                title={showKey ? 'Hide key' : 'Show key'}
               >
                 {showKey ? <EyeOff size={14} /> : <Eye size={14} />}
               </button>
             </div>
+          </div>
+
+          <div className="vault-hint">
+            🔒 Dedicated channel initialized for <strong>Russ Warner</strong>. Click below to enter your executive command center.
           </div>
 
           {error && (
@@ -1648,11 +1672,18 @@ function VaultLogin({ onLogin }) {
           )}
 
           <button type="submit" className="vault-submit-btn" disabled={loading}>
-            {loading ? 'AUTHENTICATING...' : 'INITIALIZE CONNECTION'}
+            {loading ? (
+              <>
+                <span className="pulse-dot" style={{ background: '#0b0c10' }} />
+                ESTABLISHING TELEMETRY LINK...
+              </>
+            ) : (
+              'INITIALIZE SECURE CONNECTION →'
+            )}
           </button>
           
           <div className="vault-footer-text">
-            Protected by Voxora Master Architecture
+            Voxora Sovereign Outreach Protocol · Node: KS-US-WEST · Tier-1 Infrastructure
           </div>
         </form>
       </SpotlightCard>
