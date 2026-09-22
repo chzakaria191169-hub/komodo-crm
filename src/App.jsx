@@ -667,7 +667,7 @@ function Sidebar({ activePage, onNavigate }) {
       <button
         className="sidebar-toggle-btn"
         onClick={() => setCollapsed(c => !c)}
-        title={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
+        data-tooltip={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
       >
         <motion.span
           animate={{ rotate: collapsed ? 0 : 180 }}
@@ -1634,10 +1634,11 @@ function AnalyticsPage({ leads = [], campaigns = [] }) {
   }, [leads]);
 
   // ── Chart Configs ─────────────────────────────────────────────────
+  // Colors match the Dashboard "Conversion Funnel" palette (purple / amber / cyan)
   const CAMP_COLORS = [
-    { bg: 'rgba(139,92,246,0.75)', border: 'rgba(139,92,246,1)', glow: '#8B5CF6' },
-    { bg: 'rgba(6,182,212,0.75)',  border: 'rgba(6,182,212,1)',  glow: '#06B6D4' },
-    { bg: 'rgba(16,185,129,0.75)', border: 'rgba(16,185,129,1)', glow: '#10B981' },
+    { bg: 'rgba(139,92,246,0.5)',  border: 'rgba(139,92,246,0.9)', glow: '#8B5CF6' },
+    { bg: 'rgba(245,158,11,0.5)', border: 'rgba(245,158,11,0.9)', glow: '#F59E0B' },
+    { bg: 'rgba(6,182,212,0.5)',   border: 'rgba(6,182,212,0.9)',  glow: '#06B6D4' },
   ];
 
   const funnelChartData = {
