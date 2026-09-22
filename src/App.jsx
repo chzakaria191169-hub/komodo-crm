@@ -1,4 +1,5 @@
 import React, { useEffect, useRef, useState, useCallback, useMemo } from 'react';
+import { supabase } from './supabaseClient';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   LayoutDashboard, Users, Send, Inbox, LifeBuoy,
@@ -1298,14 +1299,45 @@ function InboxPage() {
   const [updatingId, setUpdatingId] = useState(null);
   const [scrambleTrigger, setScrambleTrigger] = useState(0);
 
-  const accounts = ['All'];
-  const filtered = replies;
+  const loadReplies = useCallback(async () => {
+    setLoading(true);
+    const { data } = await supabase
+      .from('komodo_leads')
+      .select('*')
+      .eq('status', 'replied')
+      .order('replied_at', { ascending: false, nullsFirst: false });
+    if (data) setReplies(data);
+    setLoading(false);
+  }, []);
+
+  useEffect(() => { loadReplies(); }, [loadReplies]);
+
+  useEffect(() => {
+    const channel = supabase
+      .channel('komodo-inbox-realtime')
+      .on('postgres_changes', {
+        event: '*',
+        schema: 'public',
+        table: 'komodo_leads',
+        filter: 'status=eq.replied'
+      }, () => { loadReplies(); })
+      .subscribe();
+    return () => supabase.removeChannel(channel);
+  }, [loadReplies]);
+
+  const accounts = ['All', ...new Set(replies.map(r => r.sender).filter(Boolean))];
+  const filtered = selectedAccount === 'All'
+    ? replies
+    : replies.filter(r => r.sender === selectedAccount);
   const selectedMsg = replies.find(r => r.id === selectedMsgId);
 
-  // Quick action: update lead status locally
-  const handleAction = useCallback((id, newStatus) => {
+  // Quick action: update lead status in komodo_leads
+  const handleAction = useCallback(async (id, newStatus) => {
+    setUpdatingId(id);
+    await supabase.from('komodo_leads').update({ status: newStatus }).eq('id', id);
     setReplies(prev => prev.filter(r => r.id !== id));
     setSelectedMsgId(null);
+    setUpdatingId(null);
   }, []);
 
   // AI intent scoring based on reply content
@@ -1694,7 +1726,7 @@ function VaultLogin({ onLogin }) {
    ═══════════════════════════════════════════════════════════ */
 function MainDashboard() {
   const [activePage, setActivePage] = useState('dashboard');
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [campaigns, setCampaigns] = useState([]);
   const [selectedCampaignId, setSelectedCampaignId] = useState(null);
@@ -1703,12 +1735,60 @@ function MainDashboard() {
   const [leads, setLeads] = useState([]);
   const [selectedLead, setSelectedLead] = useState(null);
 
-  const loadCampaignData = useCallback((cid, isRefresh = false) => {
-    if (isRefresh) {
-      setRefreshing(true);
-      setTimeout(() => setRefreshing(false), 500);
-    }
+  useEffect(() => {
+    (async () => {
+      const { data } = await supabase.from('komodo_campaigns').select('*').order('id', { ascending: true });
+      if (data && data.length > 0) {
+        setCampaigns(data);
+        setSelectedCampaignId(data[0].id);
+      }
+    })();
   }, []);
+
+  const loadCampaignData = useCallback(async (cid, isRefresh = false) => {
+    if (!cid) return;
+    if (isRefresh) setRefreshing(true); else setLoading(true);
+
+    const { data: camp } = await supabase.from('komodo_campaigns').select('*').eq('id', cid).single();
+    setCampaign(camp);
+
+    const { data, error } = await supabase.from('komodo_leads').select('*').eq('campaign_id', cid).order('id', { ascending: false });
+    if (error) console.error(error);
+    if (data) {
+      setStats({
+        total: data.length,
+        new: data.filter(l => l.status === 'new').length,
+        sent: data.filter(l => l.status === 'cold_email_sent' || l.status === 'sent').length,
+        followups: data.filter(l => ['follow_up_1_sent', 'follow_up_2_sent', 'follow_up_3_sent', 'followup_1', 'followup_2', 'followup_3'].includes(l.status)).length,
+        replied: data.filter(l => l.status === 'replied').length,
+        archived: data.filter(l => l.status === 'archived').length,
+        bounced: data.filter(l => l.status === 'bounced').length,
+        interested: data.filter(l => l.status === 'interested').length,
+        meeting_booked: data.filter(l => l.status === 'meeting_booked').length,
+      });
+      setLeads(data);
+    }
+    if (isRefresh) setRefreshing(false); else setLoading(false);
+  }, []);
+
+  useEffect(() => {
+    if (selectedCampaignId) loadCampaignData(selectedCampaignId);
+  }, [selectedCampaignId, loadCampaignData]);
+
+  // Realtime subscription on komodo_leads
+  useEffect(() => {
+    const channel = supabase
+      .channel('komodo-leads-live')
+      .on('postgres_changes', {
+        event: '*',
+        schema: 'public',
+        table: 'komodo_leads'
+      }, () => {
+        if (selectedCampaignId) loadCampaignData(selectedCampaignId, true);
+      })
+      .subscribe();
+    return () => supabase.removeChannel(channel);
+  }, [selectedCampaignId, loadCampaignData]);
 
   const handleCampaignChange = (id) => {
     setSelectedCampaignId(id);
