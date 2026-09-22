@@ -647,15 +647,19 @@ function Sidebar({ activePage, onNavigate }) {
 
   return (
     <motion.div className="sidebar" initial={{ x: -20, opacity: 0 }} animate={{ x: 0, opacity: 1 }} transition={{ duration: 0.4 }}>
-      <div className="sidebar-logo" style={{ marginBottom: 36, marginTop: 4, gap: 10 }}>
-        <div className="logo-icon-glass">
-          <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" style={{ color: '#A78BFA' }}>
+      <div className="sidebar-logo" style={{ marginBottom: 28, marginTop: 4, gap: 11 }}>
+        <div className="logo-icon-glass" style={{ borderColor: 'rgba(245, 158, 11, 0.3)', background: 'rgba(245, 158, 11, 0.08)' }}>
+          <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" style={{ color: '#f59e0b' }}>
             <path d="M4 4l8 16 8-16" />
           </svg>
         </div>
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
-          <span className="logo-text">VOXORA</span>
-          <span className="logo-subtext">COMMAND CENTER</span>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
+            <span className="logo-text">VOXORA</span>
+            <span style={{ fontSize: 9, color: 'rgba(255,255,255,0.35)', fontWeight: 600 }}>×</span>
+            <span style={{ fontSize: 10.5, fontWeight: 700, color: '#f59e0b', letterSpacing: '0.06em' }}>KOMODO</span>
+          </div>
+          <span className="logo-subtext" style={{ color: '#5dcaa5', letterSpacing: '0.12em' }}>KOMODO EYE® TELEMETRY</span>
         </div>
       </div>
       <span className="nav-section-label">Navigation</span>
@@ -671,9 +675,12 @@ function Sidebar({ activePage, onNavigate }) {
         </div>
       ))}
       <div className="sidebar-bottom">
-        <div className="user-card">
-          <div className="user-avatar">V</div>
-          <div className="user-info"><div className="user-name">Admin</div><div className="user-role">Voxora Agency</div></div>
+        <div className="user-card" style={{ border: '1px solid rgba(245, 158, 11, 0.2)', background: 'rgba(245, 158, 11, 0.04)' }}>
+          <div className="user-avatar" style={{ background: 'linear-gradient(135deg, #f59e0b, #d97706)', color: '#0b0c10', fontWeight: 800 }}>R</div>
+          <div className="user-info">
+            <div className="user-name" style={{ color: '#fff', fontSize: 12 }}>Russ Warner</div>
+            <div className="user-role" style={{ color: '#5dcaa5', fontSize: 10 }}>President & COO · Komodo</div>
+          </div>
         </div>
       </div>
     </motion.div>
@@ -750,10 +757,20 @@ function DashboardPage({ stats, leads, loading, campaign, campaigns, selectedCam
         transition={{ duration: 0.6, ease: [0.23, 1, 0.32, 1] }}
       >
         {/* Label row */}
-        <div className="hero-greeting">AI Automation Command Center</div>
+        <div className="hero-greeting">VOXORA / OUTBOUND SYSTEM</div>
 
         {/* Main shimmer title */}
-        <div className="hero-title">Your Pipeline, Automated</div>
+        <div 
+          className="hero-title"
+          style={{
+            background: 'linear-gradient(100deg, #f59e0b 0%, #c084fc 20%, #f97316 45%, #ea580c 65%, rgba(255,255,255,0.95) 78%, #f59e0b 88%, #ea580c 100%)',
+            backgroundSize: '250% auto',
+            WebkitBackgroundClip: 'text',
+            WebkitTextFillColor: 'transparent'
+          }}
+        >
+          Komodo Systems
+        </div>
 
         {/* Scanner line */}
         <div className="hero-scanner">
@@ -768,9 +785,9 @@ function DashboardPage({ stats, leads, loading, campaign, campaigns, selectedCam
 
         {/* Live status dots */}
         <div className="hero-status-row">
-          <div className="hero-status-dot green"><span />Agents Online</div>
-          <div className="hero-status-dot cyan"><span />20 Inboxes Active</div>
-          <div className="hero-status-dot purple"><span />Outbound Live</div>
+          <div className="hero-status-dot green"><span />AGENTS ONLINE</div>
+          <div className="hero-status-dot cyan"><span />REPLIES MONITORED</div>
+          <div className="hero-status-dot purple"><span />OUTBOUND LIVE</div>
         </div>
       </motion.div>
 
@@ -1271,7 +1288,7 @@ function InboxPage() {
   const loadReplies = useCallback(async () => {
     setLoading(true);
     const { data } = await supabase
-      .from('scraped_leads')
+      .from('leads')
       .select('*')
       .eq('status', 'replied')
       .order('replied_at', { ascending: false, nullsFirst: false });
@@ -1288,7 +1305,7 @@ function InboxPage() {
       .on('postgres_changes', {
         event: '*',
         schema: 'public',
-        table: 'scraped_leads',
+        table: 'leads',
         filter: 'status=eq.replied'
       }, () => { loadReplies(); })
       .subscribe();
@@ -1304,7 +1321,7 @@ function InboxPage() {
   // Quick action: update lead status in Supabase
   const handleAction = useCallback(async (id, newStatus) => {
     setUpdatingId(id);
-    await supabase.from('scraped_leads').update({ status: newStatus }).eq('id', id);
+    await supabase.from('leads').update({ status: newStatus }).eq('id', id);
     setReplies(prev => prev.filter(r => r.id !== id));
     setSelectedMsgId(null);
     setUpdatingId(null);
@@ -1707,10 +1724,15 @@ function MainDashboard() {
 
   useEffect(() => {
     (async () => {
-      const { data } = await supabase.from('scraping_jobs').select('*').order('id', { ascending: false });
+      const { data } = await supabase.from('campaigns').select('*').order('id', { ascending: false });
       if (data && data.length > 0) {
-        setCampaigns(data);
-        setSelectedCampaignId(data[0].id);
+        // Prioritize MSP and critical infrastructure outreach campaigns for Komodo Systems
+        const mspCamps = data.filter(c => [13, 10].includes(c.id) || (c.niche && c.niche.toLowerCase().includes('msp')));
+        const activeList = mspCamps.length > 0 
+          ? [...mspCamps, ...data.filter(c => !mspCamps.some(m => m.id === c.id))] 
+          : data;
+        setCampaigns(activeList);
+        setSelectedCampaignId(activeList[0].id);
       }
     })();
   }, []);
@@ -1719,10 +1741,10 @@ function MainDashboard() {
     if (!cid) return;
     if (isRefresh) setRefreshing(true); else setLoading(true);
 
-    const { data: camp } = await supabase.from('scraping_jobs').select('*').eq('id', cid).single();
+    const { data: camp } = await supabase.from('campaigns').select('*').eq('id', cid).single();
     setCampaign(camp);
 
-    const { data, error } = await supabase.from('scraped_leads').select('*').eq('campaign_id', cid).order('id', { ascending: false }).range(0, 9999);
+    const { data, error } = await supabase.from('leads').select('*').eq('campaign_id', cid).order('id', { ascending: false }).range(0, 9999);
     if (error) console.error(error);
     if (data) {
       setStats({
