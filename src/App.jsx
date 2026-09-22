@@ -1,5 +1,4 @@
 import React, { useEffect, useRef, useState, useCallback, useMemo } from 'react';
-import { supabase } from './supabaseClient';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   LayoutDashboard, Users, Send, Inbox, Settings,
@@ -1279,52 +1278,20 @@ function CampaignsPage({ campaigns, selectedCampaignId, onSelect, stats, loading
    ═══════════════════════════════════════════════════════════ */
 function InboxPage() {
   const [replies, setReplies] = useState([]);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false);
   const [selectedAccount, setSelectedAccount] = useState('All');
   const [selectedMsgId, setSelectedMsgId] = useState(null);
   const [updatingId, setUpdatingId] = useState(null);
   const [scrambleTrigger, setScrambleTrigger] = useState(0);
 
-  const loadReplies = useCallback(async () => {
-    setLoading(true);
-    const { data } = await supabase
-      .from('leads')
-      .select('*')
-      .eq('status', 'replied')
-      .order('replied_at', { ascending: false, nullsFirst: false });
-    if (data) setReplies(data);
-    setLoading(false);
-  }, []);
-
-  useEffect(() => { loadReplies(); }, [loadReplies]);
-
-  // Realtime subscription — new replies appear instantly
-  useEffect(() => {
-    const channel = supabase
-      .channel('inbox-realtime')
-      .on('postgres_changes', {
-        event: '*',
-        schema: 'public',
-        table: 'leads',
-        filter: 'status=eq.replied'
-      }, () => { loadReplies(); })
-      .subscribe();
-    return () => supabase.removeChannel(channel);
-  }, [loadReplies]);
-
-  const accounts = ['All', ...new Set(replies.map(r => r.cold_email_sender || r.sender).filter(Boolean))];
-  const filtered = selectedAccount === 'All'
-    ? replies
-    : replies.filter(r => (r.cold_email_sender || r.sender) === selectedAccount);
+  const accounts = ['All'];
+  const filtered = replies;
   const selectedMsg = replies.find(r => r.id === selectedMsgId);
 
-  // Quick action: update lead status in Supabase
-  const handleAction = useCallback(async (id, newStatus) => {
-    setUpdatingId(id);
-    await supabase.from('leads').update({ status: newStatus }).eq('id', id);
+  // Quick action: update lead status locally
+  const handleAction = useCallback((id, newStatus) => {
     setReplies(prev => prev.filter(r => r.id !== id));
     setSelectedMsgId(null);
-    setUpdatingId(null);
   }, []);
 
   // AI intent scoring based on reply content
@@ -1713,59 +1680,21 @@ function VaultLogin({ onLogin }) {
    ═══════════════════════════════════════════════════════════ */
 function MainDashboard() {
   const [activePage, setActivePage] = useState('dashboard');
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   const [campaigns, setCampaigns] = useState([]);
   const [selectedCampaignId, setSelectedCampaignId] = useState(null);
   const [campaign, setCampaign] = useState(null);
-  const [stats, setStats] = useState({ total: 0, sent: 0, followups: 0, replied: 0, interested: 0, meeting_booked: 0, archived: 0 });
+  const [stats, setStats] = useState({ total: 0, sent: 0, followups: 0, replied: 0, interested: 0, meeting_booked: 0, archived: 0, new: 0, bounced: 0 });
   const [leads, setLeads] = useState([]);
   const [selectedLead, setSelectedLead] = useState(null);
 
-  useEffect(() => {
-    (async () => {
-      const { data } = await supabase.from('campaigns').select('*').order('id', { ascending: false });
-      if (data && data.length > 0) {
-        // Prioritize MSP and critical infrastructure outreach campaigns for Komodo Systems
-        const mspCamps = data.filter(c => [13, 10].includes(c.id) || (c.niche && c.niche.toLowerCase().includes('msp')));
-        const activeList = mspCamps.length > 0 
-          ? [...mspCamps, ...data.filter(c => !mspCamps.some(m => m.id === c.id))] 
-          : data;
-        setCampaigns(activeList);
-        setSelectedCampaignId(activeList[0].id);
-      }
-    })();
-  }, []);
-
-  const loadCampaignData = useCallback(async (cid, isRefresh = false) => {
-    if (!cid) return;
-    if (isRefresh) setRefreshing(true); else setLoading(true);
-
-    const { data: camp } = await supabase.from('campaigns').select('*').eq('id', cid).single();
-    setCampaign(camp);
-
-    const { data, error } = await supabase.from('leads').select('*').eq('campaign_id', cid).order('id', { ascending: false }).range(0, 9999);
-    if (error) console.error(error);
-    if (data) {
-      setStats({
-        total: data.length,
-        new: data.filter(l => l.status === 'new').length,
-        sent: data.filter(l => l.status === 'cold_email_sent' || l.status === 'sent').length,
-        followups: data.filter(l => ['follow_up_1_sent', 'follow_up_2_sent', 'follow_up_3_sent', 'followup_1', 'followup_2', 'followup_3'].includes(l.status)).length,
-        replied: data.filter(l => l.status === 'replied').length,
-        archived: data.filter(l => l.status === 'archived').length,
-        bounced: data.filter(l => l.status === 'bounced').length,
-        interested: data.filter(l => l.status === 'interested').length,
-        meeting_booked: data.filter(l => l.status === 'meeting_booked').length,
-      });
-      setLeads(data);
+  const loadCampaignData = useCallback((cid, isRefresh = false) => {
+    if (isRefresh) {
+      setRefreshing(true);
+      setTimeout(() => setRefreshing(false), 500);
     }
-    if (isRefresh) setRefreshing(false); else setLoading(false);
   }, []);
-
-  useEffect(() => {
-    if (selectedCampaignId) loadCampaignData(selectedCampaignId);
-  }, [selectedCampaignId, loadCampaignData]);
 
   const handleCampaignChange = (id) => {
     setSelectedCampaignId(id);
