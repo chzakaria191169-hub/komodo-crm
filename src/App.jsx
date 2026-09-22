@@ -1033,63 +1033,70 @@ function LeadIntelPanel({ lead, onClose }) {
           <div className="intel-section">
             <div className="intel-company-card">
               <div className="intel-company-left">
-                <Building2 size={14} style={{ color: 'var(--purple-bright)', flexShrink: 0 }} />
+                <Building2 size={16} style={{ color: 'var(--purple-bright)', flexShrink: 0, marginTop: 2 }} />
                 <div>
                   <div className="intel-company-name">{lead.company_name || lead.company || '—'}</div>
-                  {lead.job_title && <div className="intel-job-title">{lead.job_title}</div>}
+                  {lead.location && (
+                    <div style={{ fontSize: 11, color: 'var(--text-3)', display: 'flex', alignItems: 'center', gap: 4, marginTop: 3 }}>
+                      <span style={{ fontSize: 11 }}>📍</span> {lead.location}
+                    </div>
+                  )}
+                  {lead.job_title && (
+                    <div className="intel-job-title" style={{ marginTop: 2 }}>{lead.job_title}</div>
+                  )}
                 </div>
               </div>
-              {lead.website && (
-                <a href={lead.website.startsWith('http') ? lead.website : `https://${lead.website}`} target="_blank" rel="noreferrer" className="intel-website-btn">
-                  <Globe size={11} /> Visit Site <ExternalLink size={10} />
-                </a>
-              )}
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 6, flexShrink: 0 }}>
+                {lead.linkedin && (
+                  <a 
+                    href={lead.linkedin.startsWith('http') ? lead.linkedin : `https://${lead.linkedin}`} 
+                    target="_blank" 
+                    rel="noreferrer" 
+                    className="intel-website-btn"
+                    style={{ borderColor: 'rgba(56, 189, 248, 0.35)', color: '#38bdf8', background: 'rgba(56, 189, 248, 0.08)' }}
+                  >
+                    <Briefcase size={11} /> LinkedIn <ExternalLink size={10} />
+                  </a>
+                )}
+                {lead.website && (
+                  <a 
+                    href={lead.website.startsWith('http') ? lead.website : `https://${lead.website}`} 
+                    target="_blank" 
+                    rel="noreferrer" 
+                    className="intel-website-btn"
+                    style={{ borderColor: 'rgba(20, 184, 166, 0.35)', color: '#2dd4bf', background: 'rgba(20, 184, 166, 0.08)' }}
+                  >
+                    <Globe size={11} /> Visit Site <ExternalLink size={10} />
+                  </a>
+                )}
+              </div>
             </div>
           </div>
 
-          {(lead.target_client || lead.industry_pain || lead.niche_tag) && (
-            <div className="intel-section">
-              <div className="intel-section-title">AI Intelligence</div>
-              <div className="intel-tags-grid">
-                {lead.niche_tag && (
-                  <div className="intel-tag intel-tag--purple">
-                    <Tag size={10} />
-                    <div>
-                      <div className="intel-tag-label">Niche</div>
-                      <div className="intel-tag-val">{lead.niche_tag}</div>
-                    </div>
-                  </div>
-                )}
-                {lead.target_client && (
-                  <div className="intel-tag intel-tag--cyan">
-                    <Target size={10} />
-                    <div>
-                      <div className="intel-tag-label">Target Client</div>
-                      <div className="intel-tag-val">{lead.target_client}</div>
-                    </div>
-                  </div>
-                )}
-                {lead.industry_pain && (
-                  <div className="intel-tag intel-tag--amber" style={{ gridColumn: '1 / -1' }}>
-                    <Briefcase size={10} />
-                    <div>
-                      <div className="intel-tag-label">Industry Pain</div>
-                      <div className="intel-tag-val">{lead.industry_pain}</div>
-                    </div>
-                  </div>
-                )}
-              </div>
-            </div>
-          )}
-
-          <div className="intel-section" style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+          <div className="intel-section" style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
             <StatusBadge status={lead.status} />
+            {lead.replied_step && (
+              <span className="status-badge" style={{ background: 'rgba(139, 92, 246, 0.12)', borderColor: 'rgba(139, 92, 246, 0.35)', color: '#c084fc', display: 'flex', alignItems: 'center', gap: 4 }}>
+                <Mail size={11} /> {lead.replied_step}
+              </span>
+            )}
             {lead.replied_at && (
-              <span style={{ fontSize: 11, color: 'var(--emerald)', display: 'flex', alignItems: 'center', gap: 4 }}>
-                <CheckCircle2 size={11} /> Replied {new Date(lead.replied_at).toLocaleDateString()}
+              <span style={{ fontSize: 11, color: 'var(--emerald)', display: 'flex', alignItems: 'center', gap: 4, marginLeft: 'auto', fontWeight: 600 }}>
+                <CheckCircle2 size={12} /> Replied {new Date(lead.replied_at).toLocaleDateString()}
               </span>
             )}
           </div>
+
+          {lead.reply_message && (
+            <div className="intel-section" style={{ border: '1px solid rgba(16, 185, 129, 0.25)', background: 'rgba(16, 185, 129, 0.05)', borderRadius: 10, padding: '12px 14px' }}>
+              <div style={{ fontSize: 10, fontWeight: 700, color: 'var(--emerald)', textTransform: 'uppercase', letterSpacing: '0.12em', marginBottom: 6, display: 'flex', alignItems: 'center', gap: 6 }}>
+                <span className="pulse-dot green" /> INCOMING RESPONSE TELEMETRY
+              </div>
+              <div style={{ fontSize: 12.5, color: '#e2e8f0', lineHeight: 1.55, fontStyle: 'italic' }}>
+                "{lead.reply_message}"
+              </div>
+            </div>
+          )}
 
           <div className="intel-section">
             <div className="intel-section-title">Outreach Timeline</div>
