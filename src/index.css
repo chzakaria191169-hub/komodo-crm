@@ -81,11 +81,42 @@ body {
   padding: 28px 16px;
   border-right: 1px solid var(--border);
   background: rgba(4, 4, 15, 0.85);
-/* removed backdrop filter to fix GPU glitch */
-/* removed backdrop filter to fix GPU glitch */
   position: relative;
   z-index: 10;
   overflow-y: auto;
+  overflow-x: hidden;
+  transition: width 0.3s cubic-bezier(0.23, 1, 0.32, 1), padding 0.3s ease;
+}
+
+.sidebar.collapsed {
+  width: 64px;
+  padding: 28px 10px;
+}
+
+.sidebar-toggle-btn {
+  position: absolute;
+  top: 28px;
+  right: -14px;
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  background: rgba(139, 92, 246, 0.15);
+  border: 1px solid rgba(139, 92, 246, 0.3);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  color: var(--purple-bright);
+  z-index: 20;
+  transition: all 0.2s ease;
+  backdrop-filter: blur(8px);
+  flex-shrink: 0;
+}
+
+.sidebar-toggle-btn:hover {
+  background: rgba(139, 92, 246, 0.3);
+  border-color: rgba(139, 92, 246, 0.6);
+  box-shadow: 0 0 12px rgba(139, 92, 246, 0.4);
 }
 
 .sidebar-logo {
@@ -94,6 +125,18 @@ body {
   gap: 12px;
   padding: 0 8px;
   margin-bottom: 36px;
+  overflow: hidden;
+  white-space: nowrap;
+}
+
+.sidebar.collapsed .sidebar-logo {
+  justify-content: center;
+  padding: 0;
+  margin-bottom: 36px;
+}
+
+.sidebar.collapsed .sidebar-logo-text {
+  display: none;
 }
 
 .logo-icon {
@@ -118,6 +161,8 @@ body {
   -webkit-text-fill-color: transparent;
 }
 
+.sidebar.collapsed .nav-section-label { display: none; }
+
 .nav-section-label {
   font-size: 10px;
   font-weight: 600;
@@ -126,6 +171,8 @@ body {
   text-transform: uppercase;
   padding: 0 10px;
   margin: 20px 0 6px;
+  white-space: nowrap;
+  overflow: hidden;
 }
 
 .nav-item {
@@ -142,6 +189,18 @@ body {
   position: relative;
   margin-bottom: 2px;
   border: 1px solid transparent;
+  white-space: nowrap;
+  overflow: hidden;
+}
+
+.sidebar.collapsed .nav-item {
+  justify-content: center;
+  gap: 0;
+  padding: 10px;
+}
+
+.sidebar.collapsed .nav-item-label {
+  display: none;
 }
 
 .nav-item:hover {
@@ -168,6 +227,15 @@ body {
 
 .sidebar-bottom {
   margin-top: auto;
+}
+
+.sidebar.collapsed .user-card {
+  justify-content: center;
+  padding: 10px;
+}
+
+.sidebar.collapsed .user-info {
+  display: none;
 }
 
 .user-card {

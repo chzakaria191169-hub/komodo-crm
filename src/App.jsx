@@ -633,6 +633,8 @@ function CampaignSelector({ campaigns, selectedId, onSelect, loading }) {
    SIDEBAR
    ═══════════════════════════════════════════════════════════ */
 function Sidebar({ activePage, onNavigate }) {
+  const [collapsed, setCollapsed] = useState(false);
+
   const navItems = [
     { l: 'Dashboard', i: <LayoutDashboard size={15} />, page: 'dashboard' },
     { l: 'Leads', i: <Users size={15} />, page: 'leads' },
@@ -655,14 +657,34 @@ function Sidebar({ activePage, onNavigate }) {
   ];
 
   return (
-    <motion.div className="sidebar" initial={{ x: -20, opacity: 0 }} animate={{ x: 0, opacity: 1 }} transition={{ duration: 0.4 }}>
+    <motion.div
+      className={`sidebar${collapsed ? ' collapsed' : ''}`}
+      initial={{ x: -20, opacity: 0 }}
+      animate={{ x: 0, opacity: 1 }}
+      transition={{ duration: 0.4 }}
+    >
+      {/* Toggle Button */}
+      <button
+        className="sidebar-toggle-btn"
+        onClick={() => setCollapsed(c => !c)}
+        title={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
+      >
+        <motion.span
+          animate={{ rotate: collapsed ? 0 : 180 }}
+          transition={{ duration: 0.3 }}
+          style={{ display: 'flex', alignItems: 'center' }}
+        >
+          <ChevronRight size={13} />
+        </motion.span>
+      </button>
+
       <div className="sidebar-logo" style={{ marginBottom: 34, marginTop: 4, gap: 10 }}>
-        <div className="logo-icon-glass">
+        <div className="logo-icon-glass" style={{ flexShrink: 0 }}>
           <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" style={{ color: '#A78BFA' }}>
             <path d="M4 4l8 16 8-16" />
           </svg>
         </div>
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+        <div className="sidebar-logo-text" style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
             <span className="logo-text">VOXORA</span>
             <span style={{ fontSize: 10, color: 'var(--text-3)', opacity: 0.5 }}>|</span>
@@ -671,20 +693,30 @@ function Sidebar({ activePage, onNavigate }) {
           <span className="logo-subtext">EXECUTIVE PORTAL</span>
         </div>
       </div>
-      <span className="nav-section-label">Navigation</span>
+
+      {!collapsed && <span className="nav-section-label">Navigation</span>}
       {navItems.map(x => (
-        <div key={x.l} className={`nav-item ${activePage === x.page ? 'active' : ''}`} onClick={() => onNavigate(x.page)}>
-          <span className="nav-icon">{x.i}</span>{x.l}
+        <div
+          key={x.l}
+          className={`nav-item ${activePage === x.page ? 'active' : ''}`}
+          onClick={() => onNavigate(x.page)}
+          title={collapsed ? x.l : ''}
+        >
+          <span className="nav-icon">{x.i}</span>
+          <span className="nav-item-label">{x.l}</span>
         </div>
       ))}
-      <span className="nav-section-label" style={{ marginTop: 24 }}>System</span>
+      {!collapsed && <span className="nav-section-label" style={{ marginTop: 24 }}>System</span>}
+      {collapsed && <div style={{ height: 24 }} />}
       {sysItems.map(x => (
         <div 
           key={x.l} 
           className={`nav-item ${activePage === x.page ? 'active' : ''}`} 
           onClick={() => x.action ? x.action() : onNavigate(x.page)}
+          title={collapsed ? x.l : ''}
         >
-          <span className="nav-icon">{x.i}</span>{x.l}
+          <span className="nav-icon">{x.i}</span>
+          <span className="nav-item-label">{x.l}</span>
         </div>
       ))}
       <div className="sidebar-bottom">
@@ -1534,7 +1566,7 @@ function CampaignsPage({ campaigns, selectedCampaignId, onSelect, stats, loading
    ANALYTICS PAGE — ADVANCED DATA VISUALIZATION
    ═══════════════════════════════════════════════════════════ */
 function AnalyticsPage({ leads = [], campaigns = [] }) {
-  // 1. Niche A/B Warfare
+  // ── 1. Campaign Niche Stats ───────────────────────────────────────
   const nicheStats = useMemo(() => {
     if (campaigns && campaigns.length > 0) {
       return campaigns.map(c => ({
@@ -1543,123 +1575,23 @@ function AnalyticsPage({ leads = [], campaigns = [] }) {
         replied: c.replied_count || 0,
         interested: c.interested_count || 0,
         meetings: c.meeting_booked_count || 0,
-      })).sort((a, b) => b.total - a.total);
+        sent: c.sent_count || 0,
+      }));
     }
     const map = {};
     leads.forEach(l => {
       const niche = l.niche_tag || l.niche || (l.campaign_id ? `Campaign #${l.campaign_id}` : 'General');
-      if (!map[niche]) map[niche] = { total: 0, replied: 0, interested: 0, meetings: 0 };
+      if (!map[niche]) map[niche] = { total: 0, replied: 0, interested: 0, meetings: 0, sent: 0 };
       map[niche].total++;
+      if (['cold_email_sent','sent','follow_up_1_sent','follow_up_2_sent','follow_up_3_sent'].includes(l.status)) map[niche].sent++;
       if (l.status === 'replied' || l.status === 'interested' || l.status === 'meeting_booked') map[niche].replied++;
       if (l.status === 'interested' || l.status === 'meeting_booked') map[niche].interested++;
       if (l.status === 'meeting_booked') map[niche].meetings++;
     });
-    return Object.entries(map)
-      .map(([name, data]) => ({ name, ...data }))
-      .sort((a, b) => b.total - a.total);
+    return Object.entries(map).map(([name, data]) => ({ name, ...data }));
   }, [campaigns, leads]);
 
-  const nicheChartData = {
-    labels: nicheStats.map(n => n.name.length > 22 ? n.name.slice(0, 22) + '...' : n.name),
-    datasets: [
-      { label: 'Total Leads', data: nicheStats.map(n => n.total), backgroundColor: 'rgba(255,255,255,0.06)', borderRadius: 4 },
-      { label: 'Replies', data: nicheStats.map(n => n.replied), backgroundColor: 'rgba(6,182,212,0.6)', borderRadius: 4 },
-      { label: 'Interested', data: nicheStats.map(n => n.interested), backgroundColor: 'rgba(139,92,246,0.8)', borderRadius: 4 },
-      { label: 'Meetings', data: nicheStats.map(n => n.meetings), backgroundColor: 'rgba(16,185,129,0.9)', borderRadius: 4 },
-    ]
-  };
-
-  // 2. Sentiment Quality Funnel
-  const sentimentStats = useMemo(() => {
-    let hot = 0, positive = 0, neutral = 0, notInterested = 0;
-    const getScore = (text) => {
-      if (!text) return 'neutral';
-      const t = text.toLowerCase();
-      const pos = ['interest', 'yes', 'call', 'meeting', 'schedule', 'tell me more', 'sounds good', 'let\'s', 'when', 'available', 'book', 'demo', 'love to', 'great', 'perfect'].filter(w => t.includes(w)).length;
-      const neg = ['not interest', 'unsubscribe', 'remove', 'stop', 'no thanks', 'not looking', 'don\'t contact', 'do not'].filter(w => t.includes(w)).length;
-      if (neg > 0) return 'notInterested';
-      if (pos >= 3) return 'hot';
-      if (pos >= 1) return 'positive';
-      return 'neutral';
-    };
-    leads.filter(l => l.status === 'replied' || l.status === 'interested' || l.status === 'meeting_booked').forEach(l => {
-      if (l.status === 'meeting_booked' || l.status === 'interested') { hot++; return; }
-      const intent = getScore(l.reply_message);
-      if (intent === 'hot') hot++;
-      else if (intent === 'positive') positive++;
-      else if (intent === 'notInterested') notInterested++;
-      else neutral++;
-    });
-    return { hot, positive, neutral, notInterested };
-  }, [leads]);
-
-  const sentimentChartData = {
-    labels: ['Hot Leads 🔥', 'Positive', 'Neutral', 'Not Interested'],
-    datasets: [{
-      data: [sentimentStats.hot, sentimentStats.positive, sentimentStats.neutral, sentimentStats.notInterested],
-      backgroundColor: ['rgba(16,185,129,0.9)', 'rgba(6,182,212,0.8)', 'rgba(245,158,11,0.7)', 'rgba(239,68,68,0.7)'],
-      borderColor: 'transparent', hoverOffset: 4
-    }]
-  };
-
-  // 3. Golden Hours Heatmap
-  const heatmapData = useMemo(() => {
-    const grid = {};
-    leads.forEach(l => {
-      if (!l.sent_at && !l.cold_email_sent_at) return;
-      if (!l.replied_at) return;
-      const sentDate = new Date(l.sent_at || l.cold_email_sent_at);
-      const repDate = new Date(l.replied_at);
-      const x = sentDate.getHours();
-      const y = repDate.getHours();
-      const key = `${x},${y}`;
-      grid[key] = (grid[key] || 0) + 1;
-    });
-    const bubbles = [];
-    Object.entries(grid).forEach(([key, count]) => {
-      const [x, y] = key.split(',').map(Number);
-      bubbles.push({ x, y, r: Math.min(25, count * 5 + 4), count });
-    });
-    return bubbles;
-  }, [leads]);
-
-  const heatmapChartData = {
-    datasets: [{
-      label: 'Replies Density',
-      data: heatmapData,
-      backgroundColor: 'rgba(139,92,246,0.6)',
-      borderColor: 'rgba(139,92,246,1)',
-      borderWidth: 1
-    }]
-  };
-
-  const heatmapOpts = {
-    responsive: true, maintainAspectRatio: false,
-    plugins: {
-      legend: { display: false },
-      tooltip: {
-        callbacks: {
-          label: (ctx) => `Sent: ${ctx.raw.x}:00, Replied: ${ctx.raw.y}:00 -> ${ctx.raw.count} Replies`
-        },
-        backgroundColor: 'rgba(7,7,21,0.95)', titleColor: '#F8FAFC', bodyColor: '#94A3B8', padding: 12, cornerRadius: 10
-      }
-    },
-    scales: {
-      x: { title: { display: true, text: 'Sent Time (Hour)', color: '#94A3B8' }, min: -1, max: 24, grid: { color: 'rgba(255,255,255,0.04)' }, ticks: { stepSize: 2, color: '#94A3B8' } },
-      y: { title: { display: true, text: 'Reply Time (Hour)', color: '#94A3B8' }, min: -1, max: 24, grid: { color: 'rgba(255,255,255,0.04)' }, ticks: { stepSize: 2, color: '#94A3B8' } },
-    }
-  };
-
-  const chartOpts = {
-    responsive: true, maintainAspectRatio: false,
-    plugins: { legend: { labels: { color: '#94A3B8' } }, tooltip: { backgroundColor: 'rgba(7,7,21,0.95)', titleColor: '#F8FAFC', bodyColor: '#94A3B8', borderColor: 'rgba(255,255,255,0.08)', borderWidth: 1, padding: 12, cornerRadius: 10 } },
-    scales: {
-      y: { beginAtZero: true, grid: { color: 'rgba(255,255,255,0.04)' }, ticks: { color: '#475569', precision: 0 }, border: { display: false } },
-      x: { grid: { display: false }, ticks: { color: '#475569' }, border: { display: false } },
-    },
-  };
-
-  // 4. Reply Step Attribution Matrix
+  // ── 2. Reply Attribution ──────────────────────────────────────────
   const replyAttributionStats = useMemo(() => {
     const map = { 'Cold Email': 0, 'Follow-up 1': 0, 'Follow-up 2': 0, 'Follow-up 3': 0 };
     leads.filter(l => l.status === 'replied' || l.replied_at || l.status === 'interested' || l.status === 'meeting_booked').forEach(l => {
@@ -1670,98 +1602,301 @@ function AnalyticsPage({ leads = [], campaigns = [] }) {
     return map;
   }, [leads]);
 
-  const replyAttributionChartData = {
-    labels: ['Cold Email 📧', 'Follow-up 1 ⚡', 'Follow-up 2 💥', 'Follow-up 3 🎯'],
+  // ── 3. Sentiment ──────────────────────────────────────────────────
+  const sentimentStats = useMemo(() => {
+    let hot = 0, positive = 0, neutral = 0, notInterested = 0;
+    const score = (text) => {
+      if (!text) return 'neutral';
+      const t = text.toLowerCase();
+      const pos = ['interest','yes','call','meeting','schedule','sounds good','when','available','book','demo','great','perfect'].filter(w => t.includes(w)).length;
+      const neg = ['not interest','unsubscribe','remove','stop','no thanks','not looking','do not'].filter(w => t.includes(w)).length;
+      if (neg > 0) return 'notInterested';
+      if (pos >= 3) return 'hot';
+      if (pos >= 1) return 'positive';
+      return 'neutral';
+    };
+    leads.filter(l => l.status === 'replied' || l.status === 'interested' || l.status === 'meeting_booked').forEach(l => {
+      if (l.status === 'meeting_booked' || l.status === 'interested') { hot++; return; }
+      const s = score(l.reply_message);
+      if (s === 'hot') hot++;
+      else if (s === 'positive') positive++;
+      else if (s === 'notInterested') notInterested++;
+      else neutral++;
+    });
+    return { hot, positive, neutral, notInterested, total: hot + positive + neutral + notInterested };
+  }, [leads]);
+
+  // ── 4. Geo ────────────────────────────────────────────────────────
+  const geoStats = useMemo(() => {
+    const map = {};
+    leads.filter(l => l.location).forEach(l => { map[l.location] = (map[l.location] || 0) + 1; });
+    return Object.entries(map).map(([loc, count]) => ({ loc, count })).sort((a, b) => b.count - a.count).slice(0, 6);
+  }, [leads]);
+
+  // ── Chart Configs ─────────────────────────────────────────────────
+  const CAMP_COLORS = [
+    { bg: 'rgba(139,92,246,0.75)', border: 'rgba(139,92,246,1)', glow: '#8B5CF6' },
+    { bg: 'rgba(6,182,212,0.75)',  border: 'rgba(6,182,212,1)',  glow: '#06B6D4' },
+    { bg: 'rgba(16,185,129,0.75)', border: 'rgba(16,185,129,1)', glow: '#10B981' },
+  ];
+
+  const funnelChartData = {
+    labels: ['Total Leads', 'Sent', 'Replied', 'Interested', 'Meetings'],
+    datasets: nicheStats.map((n, i) => ({
+      label: n.name.length > 18 ? n.name.slice(0, 18) + '…' : n.name,
+      data: [n.total, n.sent, n.replied, n.interested, n.meetings],
+      backgroundColor: CAMP_COLORS[i % 3].bg,
+      borderColor: CAMP_COLORS[i % 3].border,
+      borderWidth: 1,
+      borderRadius: 6,
+      borderSkipped: false,
+    }))
+  };
+
+  const funnelOpts = {
+    responsive: true, maintainAspectRatio: false,
+    plugins: {
+      legend: { position: 'top', labels: { color: '#94A3B8', usePointStyle: true, pointStyle: 'circle', padding: 20, font: { size: 12 } } },
+      tooltip: { backgroundColor: 'rgba(7,7,21,0.96)', titleColor: '#F8FAFC', bodyColor: '#94A3B8', borderColor: 'rgba(139,92,246,0.3)', borderWidth: 1, padding: 14, cornerRadius: 12 }
+    },
+    scales: {
+      y: { beginAtZero: true, grid: { color: 'rgba(255,255,255,0.04)' }, ticks: { color: '#475569', precision: 0, font: { size: 11 } }, border: { display: false } },
+      x: { grid: { display: false }, ticks: { color: '#94A3B8', font: { size: 12, weight: '500' } }, border: { display: false } },
+    },
+  };
+
+  const attributionTotal = Object.values(replyAttributionStats).reduce((a, b) => a + b, 0);
+  const attributionData = {
+    labels: ['Cold Email', 'Follow-up 1', 'Follow-up 2', 'Follow-up 3'],
     datasets: [{
-      label: 'Replies Generated',
       data: [replyAttributionStats['Cold Email'], replyAttributionStats['Follow-up 1'], replyAttributionStats['Follow-up 2'], replyAttributionStats['Follow-up 3']],
-      backgroundColor: ['rgba(139,92,246,0.8)', 'rgba(245,158,11,0.8)', 'rgba(236,72,153,0.8)', 'rgba(16,185,129,0.8)'],
-      borderRadius: 6
+      backgroundColor: ['rgba(139,92,246,0.85)', 'rgba(245,158,11,0.85)', 'rgba(236,72,153,0.85)', 'rgba(16,185,129,0.85)'],
+      borderColor: ['rgba(139,92,246,0.2)', 'rgba(245,158,11,0.2)', 'rgba(236,72,153,0.2)', 'rgba(16,185,129,0.2)'],
+      borderWidth: 1, hoverOffset: 8,
     }]
   };
 
-  const pieOpts = {
-    responsive: true, maintainAspectRatio: false,
-    plugins: { legend: { position: 'right', labels: { color: '#94A3B8', usePointStyle: true, padding: 20 } }, tooltip: { backgroundColor: 'rgba(7,7,21,0.95)', titleColor: '#F8FAFC', bodyColor: '#94A3B8', padding: 12, cornerRadius: 10 } },
-    cutout: '65%'
+  const doughnutOpts = {
+    responsive: true, maintainAspectRatio: false, cutout: '70%',
+    plugins: {
+      legend: { display: false },
+      tooltip: { backgroundColor: 'rgba(7,7,21,0.96)', titleColor: '#F8FAFC', bodyColor: '#94A3B8', borderColor: 'rgba(255,255,255,0.08)', borderWidth: 1, padding: 14, cornerRadius: 12 }
+    }
   };
 
-  const geoStats = useMemo(() => {
-    const map = {};
-    leads.filter(l => l.location).forEach(l => {
-      map[l.location] = (map[l.location] || 0) + 1;
-    });
-    return Object.entries(map).map(([loc, count]) => ({ loc, count })).sort((a, b) => b.count - a.count);
-  }, [leads]);
+  const sentimentData = {
+    labels: ['Hot 🔥', 'Positive', 'Neutral', 'Not Interested'],
+    datasets: [{
+      data: [sentimentStats.hot, sentimentStats.positive, sentimentStats.neutral, sentimentStats.notInterested],
+      backgroundColor: ['rgba(16,185,129,0.9)', 'rgba(6,182,212,0.85)', 'rgba(245,158,11,0.8)', 'rgba(239,68,68,0.8)'],
+      borderColor: 'transparent', hoverOffset: 6,
+    }]
+  };
+
+  // Attribution badges
+  const attributionItems = [
+    { label: 'Cold Email',   icon: '📧', count: replyAttributionStats['Cold Email'],   color: '#8B5CF6' },
+    { label: 'Follow-up 1', icon: '⚡', count: replyAttributionStats['Follow-up 1'], color: '#F59E0B' },
+    { label: 'Follow-up 2', icon: '💥', count: replyAttributionStats['Follow-up 2'], color: '#EC4899' },
+    { label: 'Follow-up 3', icon: '🎯', count: replyAttributionStats['Follow-up 3'], color: '#10B981' },
+  ];
+
+  const sentimentItems = [
+    { label: 'Hot Leads',       pct: sentimentStats.total > 0 ? Math.round((sentimentStats.hot / sentimentStats.total) * 100) : 0,          color: '#10B981', icon: '🔥' },
+    { label: 'Positive Intent', pct: sentimentStats.total > 0 ? Math.round((sentimentStats.positive / sentimentStats.total) * 100) : 0,      color: '#06B6D4', icon: '✅' },
+    { label: 'Neutral',         pct: sentimentStats.total > 0 ? Math.round((sentimentStats.neutral / sentimentStats.total) * 100) : 0,        color: '#F59E0B', icon: '〰️' },
+    { label: 'Not Interested',  pct: sentimentStats.total > 0 ? Math.round((sentimentStats.notInterested / sentimentStats.total) * 100) : 0, color: '#EF4444', icon: '🚫' },
+  ];
 
   return (
-    <motion.div className="content" initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 0.3 }}>
-      <div className="page-header" style={{ marginBottom: 24 }}>
+    <motion.div className="content" initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 0.35 }}>
+
+      {/* PAGE HEADER */}
+      <motion.div className="page-header" style={{ marginBottom: 28 }} initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4 }}>
         <div>
           <h1 className="page-title">Advanced Analytics</h1>
-          <p className="page-sub">Next-dimension data visualization for your B2B machine</p>
+          <p className="page-sub">Next-dimension intelligence visualization · {leads.length} leads tracked across {campaigns.length} campaigns</p>
         </div>
-      </div>
+        <div style={{ display: 'flex', gap: 8 }}>
+          {nicheStats.map((n, i) => (
+            <div key={n.name} style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '6px 12px', borderRadius: 20, background: `${CAMP_COLORS[i % 3].bg.replace('0.75', '0.1')}`, border: `1px solid ${CAMP_COLORS[i % 3].bg.replace('0.75', '0.3')}`, fontSize: 11, color: CAMP_COLORS[i % 3].glow, fontWeight: 600 }}>
+              <span style={{ width: 6, height: 6, borderRadius: '50%', background: CAMP_COLORS[i % 3].glow, display: 'inline-block', boxShadow: `0 0 6px ${CAMP_COLORS[i % 3].glow}` }} />
+              {n.name.length > 15 ? n.name.slice(0, 15) + '…' : n.name}
+            </div>
+          ))}
+        </div>
+      </motion.div>
 
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 20 }}>
-        
-        <SpotlightCard className="glass-card" style={{ gridColumn: '1 / -1' }}>
-          <div className="card-title">⚔️ Niche A/B Warfare</div>
-          <div className="card-subtitle">Compare performance and conversion velocity across your target niches</div>
-          <div style={{ height: 280, marginTop: 16 }}>
-            {nicheStats.length > 0 ? (
-              <Bar data={nicheChartData} options={chartOpts} />
-            ) : <div className="empty-state" style={{ height: '100%', display:'flex', alignItems:'center', justifyContent:'center'}}>Not enough data yet</div>}
-          </div>
-        </SpotlightCard>
-
-        <SpotlightCard className="glass-card" style={{ gridColumn: '1 / -1' }}>
-          <div className="card-title">🎯 Reply Attribution Matrix (مصدر الردود)</div>
-          <div className="card-subtitle">Exact breakdown of which email touchpoint triggered client replies across your campaigns</div>
-          <div style={{ height: 260, marginTop: 16 }}>
-            <Bar data={replyAttributionChartData} options={chartOpts} />
-          </div>
-        </SpotlightCard>
-
-        <SpotlightCard className="glass-card">
-          <div className="card-title">⏰ Golden Hours Heatmap</div>
-          <div className="card-subtitle">Correlation between Email Sent Time and Reply Time</div>
-          <div style={{ height: 240, marginTop: 16 }}>
-            {heatmapData.length > 0 ? (
-              <Bubble data={heatmapChartData} options={heatmapOpts} />
-            ) : <div className="empty-state" style={{ height: '100%', display:'flex', alignItems:'center', justifyContent:'center'}}>Waiting for reply data...</div>}
-          </div>
-        </SpotlightCard>
-
-        <SpotlightCard className="glass-card">
-          <div className="card-title">🧠 Sentiment Quality Funnel</div>
-          <div className="card-subtitle">AI analysis of reply intent to gauge copy effectiveness</div>
-          <div style={{ height: 240, marginTop: 16 }}>
-            {(sentimentStats.hot + sentimentStats.positive + sentimentStats.neutral + sentimentStats.notInterested) > 0 ? (
-              <Doughnut data={sentimentChartData} options={pieOpts} />
-            ) : <div className="empty-state" style={{ height: '100%', display:'flex', alignItems:'center', justifyContent:'center'}}>Waiting for reply data...</div>}
-          </div>
-        </SpotlightCard>
-
-        <SpotlightCard className="glass-card" style={{ gridColumn: '1 / -1' }}>
-          <div className="card-title">🌍 Geographic Hit Rate</div>
-          <div className="card-subtitle">Top performing locations across outreach campaigns</div>
-          <div style={{ marginTop: 16, display: 'flex', gap: 12, flexWrap: 'wrap' }}>
-            {geoStats.length > 0 ? (
-              geoStats.map(g => (
-                <div key={g.loc} style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid var(--border)', padding: '12px 16px', borderRadius: 12, minWidth: 160 }}>
-                  <div style={{ fontSize: 16, fontWeight: 600, color: 'var(--text-1)' }}>{g.count} <span style={{fontSize: 12, fontWeight: 400, color: 'var(--text-3)'}}>Leads</span></div>
-                  <div style={{ fontSize: 13, color: 'var(--text-2)', marginTop: 4 }}>📍 {g.loc}</div>
+      {/* TOP ROW — QUICK CAMPAIGN STATS */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 16, marginBottom: 20 }}>
+        {nicheStats.map((n, i) => {
+          const replyRate = n.sent > 0 ? ((n.replied / n.sent) * 100).toFixed(1) : '0';
+          return (
+            <motion.div key={n.name} initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4, delay: i * 0.07 }}>
+              <SpotlightCard className="glass-card" style={{ padding: 20, position: 'relative', overflow: 'hidden' }}>
+                {/* Glow blob */}
+                <div style={{ position: 'absolute', top: -30, right: -30, width: 100, height: 100, borderRadius: '50%', background: `radial-gradient(circle, ${CAMP_COLORS[i % 3].glow}22 0%, transparent 70%)`, pointerEvents: 'none' }} />
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 12 }}>
+                  <div style={{ fontSize: 10, fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase', color: CAMP_COLORS[i % 3].glow }}>{n.name.length > 20 ? n.name.slice(0, 20) + '…' : n.name}</div>
+                  <div style={{ padding: '3px 8px', borderRadius: 20, background: `${CAMP_COLORS[i % 3].glow}22`, border: `1px solid ${CAMP_COLORS[i % 3].glow}44`, fontSize: 10, color: CAMP_COLORS[i % 3].glow, fontWeight: 600 }}>{replyRate}% Reply Rate</div>
                 </div>
-              ))
-            ) : (
-              <div style={{ color: 'var(--text-3)', fontSize: 13, fontStyle: 'italic', padding: 16, background: 'rgba(255,255,255,0.02)', borderRadius: 12, width: '100%', textAlign: 'center' }}>
-                Geographic tracking initialized. Awaiting leads with location data.
-              </div>
-            )}
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 8 }}>
+                  {[
+                    { label: 'Leads', value: n.total },
+                    { label: 'Sent', value: n.sent },
+                    { label: 'Replies', value: n.replied },
+                    { label: 'Meetings', value: n.meetings },
+                  ].map(s => (
+                    <div key={s.label} style={{ textAlign: 'center' }}>
+                      <div style={{ fontSize: 20, fontWeight: 700, color: '#F8FAFC', fontFamily: 'var(--font-display)', lineHeight: 1 }}>{s.value}</div>
+                      <div style={{ fontSize: 10, color: '#475569', marginTop: 4, textTransform: 'uppercase', letterSpacing: '0.06em' }}>{s.label}</div>
+                    </div>
+                  ))}
+                </div>
+              </SpotlightCard>
+            </motion.div>
+          );
+        })}
+      </div>
+
+      {/* MAIN CHART — CONVERSION FUNNEL COMPARISON */}
+      <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4, delay: 0.15 }} style={{ marginBottom: 20 }}>
+        <SpotlightCard className="glass-card" style={{ padding: 24 }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 20 }}>
+            <div>
+              <div className="card-title">⚔️ Niche Conversion Warfare</div>
+              <div className="card-subtitle">Full funnel comparison — Total → Sent → Replied → Interested → Meeting Booked</div>
+            </div>
+          </div>
+          <div style={{ height: 300 }}>
+            {nicheStats.length > 0
+              ? <Bar data={funnelChartData} options={funnelOpts} />
+              : <div style={{ height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--text-3)' }}>No campaign data yet</div>}
           </div>
         </SpotlightCard>
+      </motion.div>
+
+      {/* BOTTOM ROW — 2 CARDS */}
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 20, marginBottom: 20 }}>
+
+        {/* REPLY ATTRIBUTION */}
+        <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4, delay: 0.22 }}>
+          <SpotlightCard className="glass-card" style={{ padding: 24, height: '100%' }}>
+            <div className="card-title" style={{ marginBottom: 4 }}>🎯 Reply Attribution Matrix</div>
+            <div className="card-subtitle" style={{ marginBottom: 20 }}>Which touchpoint unlocked the reply?</div>
+            <div style={{ display: 'flex', gap: 20, alignItems: 'center' }}>
+              {/* Doughnut */}
+              <div style={{ width: 160, height: 160, flexShrink: 0, position: 'relative' }}>
+                <Doughnut data={attributionData} options={doughnutOpts} />
+                <div style={{ position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%, -50%)', textAlign: 'center', pointerEvents: 'none' }}>
+                  <div style={{ fontSize: 22, fontWeight: 700, color: '#F8FAFC', fontFamily: 'var(--font-display)' }}>{attributionTotal}</div>
+                  <div style={{ fontSize: 9, color: '#475569', letterSpacing: '0.08em', textTransform: 'uppercase' }}>Total</div>
+                </div>
+              </div>
+              {/* Legend bars */}
+              <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 10 }}>
+                {attributionItems.map(item => {
+                  const pct = attributionTotal > 0 ? Math.round((item.count / attributionTotal) * 100) : 0;
+                  return (
+                    <div key={item.label}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 4, fontSize: 12 }}>
+                        <span style={{ color: '#94A3B8' }}>{item.icon} {item.label}</span>
+                        <span style={{ color: '#F8FAFC', fontWeight: 600 }}>{item.count} <span style={{ color: '#475569', fontWeight: 400, fontSize: 10 }}>({pct}%)</span></span>
+                      </div>
+                      <div style={{ height: 4, borderRadius: 99, background: 'rgba(255,255,255,0.05)', overflow: 'hidden' }}>
+                        <motion.div
+                          initial={{ width: 0 }}
+                          animate={{ width: `${pct}%` }}
+                          transition={{ duration: 0.8, delay: 0.3, ease: [0.23, 1, 0.32, 1] }}
+                          style={{ height: '100%', background: item.color, borderRadius: 99, boxShadow: `0 0 8px ${item.color}88` }}
+                        />
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          </SpotlightCard>
+        </motion.div>
+
+        {/* SENTIMENT FUNNEL */}
+        <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4, delay: 0.29 }}>
+          <SpotlightCard className="glass-card" style={{ padding: 24, height: '100%' }}>
+            <div className="card-title" style={{ marginBottom: 4 }}>🧠 Reply Sentiment Funnel</div>
+            <div className="card-subtitle" style={{ marginBottom: 20 }}>AI-classified intent from reply messages</div>
+            <div style={{ display: 'flex', gap: 20, alignItems: 'center' }}>
+              <div style={{ width: 160, height: 160, flexShrink: 0, position: 'relative' }}>
+                {sentimentStats.total > 0
+                  ? <Doughnut data={sentimentData} options={doughnutOpts} />
+                  : <div style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--text-3)', fontSize: 12 }}>No replies yet</div>}
+                {sentimentStats.total > 0 && (
+                  <div style={{ position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%, -50%)', textAlign: 'center', pointerEvents: 'none' }}>
+                    <div style={{ fontSize: 22, fontWeight: 700, color: '#10B981', fontFamily: 'var(--font-display)' }}>{sentimentStats.total > 0 ? Math.round((sentimentStats.hot / sentimentStats.total) * 100) : 0}%</div>
+                    <div style={{ fontSize: 9, color: '#475569', letterSpacing: '0.08em', textTransform: 'uppercase' }}>Hot</div>
+                  </div>
+                )}
+              </div>
+              <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 10 }}>
+                {sentimentItems.map(item => (
+                  <div key={item.label}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 4, fontSize: 12 }}>
+                      <span style={{ color: '#94A3B8' }}>{item.icon} {item.label}</span>
+                      <span style={{ color: '#F8FAFC', fontWeight: 600 }}>{item.pct}%</span>
+                    </div>
+                    <div style={{ height: 4, borderRadius: 99, background: 'rgba(255,255,255,0.05)', overflow: 'hidden' }}>
+                      <motion.div
+                        initial={{ width: 0 }}
+                        animate={{ width: `${item.pct}%` }}
+                        transition={{ duration: 0.8, delay: 0.4, ease: [0.23, 1, 0.32, 1] }}
+                        style={{ height: '100%', background: item.color, borderRadius: 99, boxShadow: `0 0 8px ${item.color}88` }}
+                      />
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </SpotlightCard>
+        </motion.div>
       </div>
+
+      {/* BOTTOM ROW — GEO */}
+      <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4, delay: 0.36 }}>
+        <SpotlightCard className="glass-card" style={{ padding: 24 }}>
+          <div className="card-title" style={{ marginBottom: 4 }}>🌍 Geographic Signal Strength</div>
+          <div className="card-subtitle" style={{ marginBottom: 20 }}>Top responding cities and regions</div>
+          {geoStats.length > 0 ? (
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(180px, 1fr))', gap: 12 }}>
+              {geoStats.map((g, i) => (
+                <motion.div
+                  key={g.loc}
+                  initial={{ opacity: 0, scale: 0.95 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  transition={{ duration: 0.35, delay: i * 0.05 }}
+                  style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.07)', borderRadius: 14, padding: '14px 16px', position: 'relative', overflow: 'hidden' }}
+                >
+                  <div style={{ position: 'absolute', inset: 0, background: `linear-gradient(135deg, rgba(139,92,246,${0.04 - i * 0.005}) 0%, transparent 60%)`, pointerEvents: 'none' }} />
+                  <div style={{ fontSize: 22, fontWeight: 700, color: '#F8FAFC', fontFamily: 'var(--font-display)', lineHeight: 1, marginBottom: 6 }}>{g.count}</div>
+                  <div style={{ fontSize: 11, color: '#94A3B8', display: 'flex', alignItems: 'center', gap: 4 }}>
+                    <span>📍</span>
+                    <span style={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{g.loc}</span>
+                  </div>
+                  {/* Mini bar */}
+                  <div style={{ marginTop: 10, height: 3, borderRadius: 99, background: 'rgba(255,255,255,0.06)' }}>
+                    <motion.div
+                      initial={{ width: 0 }}
+                      animate={{ width: `${geoStats[0] ? (g.count / geoStats[0].count) * 100 : 0}%` }}
+                      transition={{ duration: 0.7, delay: 0.4 + i * 0.05 }}
+                      style={{ height: '100%', borderRadius: 99, background: 'linear-gradient(90deg, #8B5CF6, #06B6D4)', boxShadow: '0 0 6px rgba(139,92,246,0.5)' }}
+                    />
+                  </div>
+                </motion.div>
+              ))}
+            </div>
+          ) : (
+            <div style={{ color: 'var(--text-3)', fontSize: 13, padding: '24px 0', textAlign: 'center' }}>Geographic data will appear once leads include location info.</div>
+          )}
+        </SpotlightCard>
+      </motion.div>
     </motion.div>
   );
 }
@@ -2027,34 +2162,6 @@ function InboxPage() {
                     ? <CyberScramble text={selectedMsg.reply_message} trigger={scrambleTrigger} duration={600} />
                     : <span style={{ color: 'var(--text-3)', fontStyle: 'italic' }}>No reply text stored yet.</span>
                   }
-                </div>
-              </div>
-
-              {/* Quick Action Buttons */}
-              <div className="inbox-actions">
-                <div style={{ fontSize: 10, color: 'var(--text-3)', marginBottom: 8, letterSpacing: '0.08em', textTransform: 'uppercase' }}>Quick Actions</div>
-                <div className="inbox-action-row">
-                  <button
-                    className="inbox-action-btn inbox-action-btn--green"
-                    disabled={updatingId === selectedMsg.id}
-                    onClick={() => handleAction(selectedMsg.id, 'interested')}
-                  >
-                    ✅ Mark Interested
-                  </button>
-                  <button
-                    className="inbox-action-btn inbox-action-btn--purple"
-                    disabled={updatingId === selectedMsg.id}
-                    onClick={() => handleAction(selectedMsg.id, 'meeting_booked')}
-                  >
-                    📅 Meeting Booked
-                  </button>
-                  <button
-                    className="inbox-action-btn inbox-action-btn--red"
-                    disabled={updatingId === selectedMsg.id}
-                    onClick={() => handleAction(selectedMsg.id, 'archived')}
-                  >
-                    🗑️ Archive
-                  </button>
                 </div>
               </div>
             </motion.div>
