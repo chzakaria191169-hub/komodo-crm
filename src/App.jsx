@@ -6,16 +6,17 @@ import {
   Cpu, Zap, BarChart2, TrendingUp, Activity, Bot,
   ChevronDown, Search, RefreshCw, Filter, Tag, Mail, X, Clock, Building2,
   ExternalLink, Globe, Briefcase, Target, ChevronRight, CheckCircle2, Circle, Terminal,
-  Eye, EyeOff, Lock, Key
+  Eye, EyeOff, Lock, Key, Calendar
 } from 'lucide-react';
 import {
   Chart as ChartJS, CategoryScale, LinearScale, BarElement,
+  PointElement, ArcElement,
   Title, Tooltip, Legend
 } from 'chart.js';
-import { Bar } from 'react-chartjs-2';
+import { Bar, Bubble, Doughnut } from 'react-chartjs-2';
 import './index.css';
 
-ChartJS.register(CategoryScale, LinearScale, BarElement, Title, Tooltip, Legend);
+ChartJS.register(CategoryScale, LinearScale, BarElement, PointElement, ArcElement, Title, Tooltip, Legend);
 
 /* ═══════════════════════════════════════════════════════════
    VOXORA AI NETWORK CANVAS — exact DNA from voxora.agency
@@ -741,10 +742,10 @@ function ComingSoonPage({ icon, title, desc }) {
    DASHBOARD PAGE
    ═══════════════════════════════════════════════════════════ */
 function DashboardPage({ stats, leads, loading, campaign, campaigns, selectedCampaignId, onCampaignChange, onRefresh, refreshing, onLeadClick }) {
-  const replyRate = stats.total > 0 ? Math.round(((stats.replied + stats.interested + stats.meeting_booked) / stats.total) * 100) : 0;
+  const replyRate = stats.sent > 0 ? ((stats.replied / stats.sent) * 100).toFixed(1) : '0';
 
   const chartData = {
-    labels: ['Sent', 'Follow-up', 'Replied', 'Interested', 'Meeting'],
+    labels: ['Delivered', 'Follow-up', 'Replied', 'Interested', 'Meeting'],
     datasets: [{
       data: [stats.sent, stats.followups, stats.replied, stats.interested, stats.meeting_booked],
       backgroundColor: ['rgba(139,92,246,0.5)', 'rgba(245,158,11,0.5)', 'rgba(6,182,212,0.5)', 'rgba(139,92,246,0.7)', 'rgba(16,185,129,0.6)'],
@@ -808,8 +809,8 @@ function DashboardPage({ stats, leads, loading, campaign, campaigns, selectedCam
       {/* KPI CARDS */}
       <div className="metrics-grid">
         <MetricCard label="Total Leads" value={stats.total} icon={<Users size={14} />} variant="purple" badge={`${stats.total - stats.archived} active`} sub="in pipeline" loading={loading} idx={0} />
-        <MetricCard label="Emails Sent" value={stats.sent + stats.followups + stats.replied + stats.interested + stats.meeting_booked} icon={<Send size={14} />} variant="cyan" badge="Delivered" sub="across 20 inboxes" loading={loading} idx={1} />
-        <MetricCard label="Reply Rate" value={replyRate} icon={<TrendingUp size={14} />} variant="emerald" badge="%" sub={`${stats.replied + stats.interested + stats.meeting_booked} replies`} loading={loading} idx={2} />
+        <MetricCard label="Emails Sent" value={stats.sent} icon={<Send size={14} />} variant="cyan" badge="Delivered" sub="across 20 inboxes" loading={loading} idx={1} />
+        <MetricCard label="Reply Rate" value={replyRate} icon={<TrendingUp size={14} />} variant="emerald" badge="%" sub={`${stats.replied} replies generated`} loading={loading} idx={2} />
         <MetricCard label="Follow-ups" value={stats.followups} icon={<Activity size={14} />} variant="amber" badge="Running" sub="auto-scheduled" loading={loading} idx={3} />
       </div>
 
@@ -1127,6 +1128,217 @@ function LeadIntelPanel({ lead, onClose }) {
   );
 }
 
+function getRepliedStep(lead) {
+  if (lead.replied_step) return lead.replied_step;
+  if (!lead.replied_at) return null;
+  const rep = new Date(lead.replied_at).getTime();
+  const fu3 = lead.follow_up_3_sent_at ? new Date(lead.follow_up_3_sent_at).getTime() : 0;
+  const fu2 = lead.follow_up_2_sent_at ? new Date(lead.follow_up_2_sent_at).getTime() : 0;
+  const fu1 = lead.follow_up_1_sent_at ? new Date(lead.follow_up_1_sent_at).getTime() : 0;
+  const cold = lead.cold_email_sent_at ? new Date(lead.cold_email_sent_at).getTime() : (lead.sent_at ? new Date(lead.sent_at).getTime() : 0);
+
+  if (fu3 && rep >= fu3) return 'Follow-up 3';
+  if (fu2 && rep >= fu2) return 'Follow-up 2';
+  if (fu1 && rep >= fu1) return 'Follow-up 1';
+  if (cold && rep >= cold) return 'Cold Email';
+  return 'Cold Email';
+}
+
+const getLocalDateStr = (dateInput) => {
+  const d = new Date(dateInput);
+  if (isNaN(d.getTime())) return '';
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+};
+
+const matchesDateFilter = (lead, filter, custom) => {
+  if (!filter || filter === 'all') return true;
+  const sent = lead.follow_up_3_sent_at || lead.follow_up_2_sent_at || lead.follow_up_1_sent_at || lead.cold_email_sent_at || lead.sent_at;
+  if (!sent) return false;
+  const sentDate = new Date(sent);
+  if (isNaN(sentDate.getTime())) return false;
+  
+  const now = new Date();
+  const todayStr = getLocalDateStr(now);
+  const yesterday = new Date(now);
+  yesterday.setDate(yesterday.getDate() - 1);
+  const yesterdayStr = getLocalDateStr(yesterday);
+  const leadDateStr = getLocalDateStr(sentDate);
+
+  if (filter === 'today') return leadDateStr === todayStr;
+  if (filter === 'yesterday') return leadDateStr === yesterdayStr;
+  if (filter === 'last_7_days') {
+    const sevenDaysAgo = new Date(now);
+    sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+    return sentDate >= sevenDaysAgo && sentDate <= now;
+  }
+  if (filter === 'last_30_days') {
+    const thirtyDaysAgo = new Date(now);
+    thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+    return sentDate >= thirtyDaysAgo && sentDate <= now;
+  }
+  if (filter === 'custom' && custom) {
+    return leadDateStr === custom;
+  }
+  return true;
+};
+
+function DateFilterDropdown({ leads = [], dateFilter, setDateFilter, customDate, setCustomDate }) {
+  const [isOpen, setIsOpen] = useState(false);
+  const dropdownRef = useRef(null);
+
+  useEffect(() => {
+    function handleClickOutside(e) {
+      if (dropdownRef.current && !dropdownRef.current.contains(e.target)) {
+        setIsOpen(false);
+      }
+    }
+    if (isOpen) {
+      document.addEventListener('mousedown', handleClickOutside);
+    }
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, [isOpen]);
+
+  const now = new Date();
+  const todayStr = getLocalDateStr(now);
+  const yesterday = new Date(now);
+  yesterday.setDate(yesterday.getDate() - 1);
+  const yesterdayStr = getLocalDateStr(yesterday);
+  const sevenDaysAgo = new Date(now);
+  sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+  const thirtyDaysAgo = new Date(now);
+  thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+
+  let todayCount = 0, yesterdayCount = 0, sevenDaysCount = 0, thirtyDaysCount = 0;
+  leads.forEach(l => {
+    const sent = l.follow_up_3_sent_at || l.follow_up_2_sent_at || l.follow_up_1_sent_at || l.cold_email_sent_at || l.sent_at;
+    if (!sent) return;
+    const sentDate = new Date(sent);
+    if (isNaN(sentDate.getTime())) return;
+    const dateStr = getLocalDateStr(sent);
+
+    if (dateStr === todayStr) todayCount++;
+    if (dateStr === yesterdayStr) yesterdayCount++;
+    if (sentDate >= sevenDaysAgo && sentDate <= now) sevenDaysCount++;
+    if (sentDate >= thirtyDaysAgo && sentDate <= now) thirtyDaysCount++;
+  });
+
+  const getButtonLabel = () => {
+    if (dateFilter === 'today') return 'Today';
+    if (dateFilter === 'yesterday') return 'Yesterday';
+    if (dateFilter === 'last_7_days') return 'Last 7 Days';
+    if (dateFilter === 'last_30_days') return 'Last 30 Days';
+    if (dateFilter === 'custom' && customDate) {
+      try {
+        const parts = customDate.split('-');
+        if (parts.length === 3) {
+          const d = new Date(parts[0], parts[1] - 1, parts[2]);
+          return d.toLocaleDateString('en-GB', { day: '2-digit', month: 'short' });
+        }
+      } catch (e) {}
+      return customDate;
+    }
+    return 'All Dates';
+  };
+
+  const presets = [
+    { key: 'all', label: 'All Time', count: leads.length },
+    { key: 'today', label: 'Today', count: todayCount },
+    { key: 'yesterday', label: 'Yesterday', count: yesterdayCount },
+    { key: 'last_7_days', label: 'Last 7 Days', count: sevenDaysCount },
+    { key: 'last_30_days', label: 'Last 30 Days', count: thirtyDaysCount },
+  ];
+
+  return (
+    <div className="date-filter-wrap" ref={dropdownRef}>
+      <button 
+        type="button" 
+        className={`date-filter-btn ${dateFilter !== 'all' ? 'active' : ''}`}
+        onClick={() => setIsOpen(!isOpen)}
+      >
+        <Calendar size={13} style={{ opacity: dateFilter !== 'all' ? 1 : 0.6, color: dateFilter !== 'all' ? 'var(--purple-bright)' : 'inherit' }} />
+        <span>{getButtonLabel()}</span>
+        {dateFilter !== 'all' ? (
+          <span 
+            className="clear-date-btn" 
+            onClick={(e) => {
+              e.stopPropagation();
+              setDateFilter('all');
+              setCustomDate('');
+              setIsOpen(false);
+            }}
+            title="Clear date filter"
+          >
+            <X size={11} />
+          </span>
+        ) : (
+          <ChevronDown size={11} style={{ opacity: 0.5 }} />
+        )}
+      </button>
+
+      <AnimatePresence>
+        {isOpen && (
+          <motion.div 
+            className="date-dropdown-menu"
+            initial={{ opacity: 0, y: 6, scale: 0.97 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={{ opacity: 0, y: 6, scale: 0.97 }}
+            transition={{ duration: 0.15 }}
+          >
+            <div className="date-dropdown-header">Filter by Outreach Date</div>
+            <div className="date-preset-list">
+              {presets.map(p => (
+                <button
+                  key={p.key}
+                  type="button"
+                  className={`date-preset-item ${dateFilter === p.key ? 'active' : ''}`}
+                  onClick={() => {
+                    setDateFilter(p.key);
+                    setIsOpen(false);
+                  }}
+                >
+                  <span>{p.label}</span>
+                  <span className="preset-count">{p.count}</span>
+                </button>
+              ))}
+            </div>
+
+            <div className="date-divider" />
+
+            <div className="custom-date-section">
+              <div className="custom-date-label">Pick specific date:</div>
+              <div className="custom-date-input-wrap">
+                <input 
+                  type="date" 
+                  value={customDate} 
+                  onChange={e => {
+                    setCustomDate(e.target.value);
+                    if (e.target.value) {
+                      setDateFilter('custom');
+                    }
+                  }}
+                  className="custom-date-input"
+                />
+                {customDate && (
+                  <button 
+                    type="button"
+                    className="btn-apply-date"
+                    onClick={() => {
+                      setDateFilter('custom');
+                      setIsOpen(false);
+                    }}
+                  >
+                    Apply
+                  </button>
+                )}
+              </div>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </div>
+  );
+}
+
 /* ═══════════════════════════════════════════════════════════
    LEADS TABLE (reusable)
    ═══════════════════════════════════════════════════════════ */
@@ -1154,10 +1366,24 @@ function LeadsTable({ leads, loading, onLeadClick }) {
                   {lead.job_title && <div style={{ fontSize: 10, color: 'var(--text-3)', marginTop: 2 }}>{lead.job_title}</div>}
                 </td>
                 <td>
-                  {(lead.website || lead.Website)
-                    ? <a href={(lead.website || lead.Website).startsWith('http') ? (lead.website || lead.Website) : `https://${lead.website || lead.Website}`} target="_blank" rel="noreferrer" onClick={e => e.stopPropagation()} className="company-link">{lead.company_name || lead.company || '—'}</a>
-                    : (lead.company_name || lead.company || '—')
-                  }
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
+                    {(lead.website || lead.Website)
+                      ? <a href={(lead.website || lead.Website).startsWith('http') ? (lead.website || lead.Website) : `https://${lead.website || lead.Website}`} target="_blank" rel="noreferrer" onClick={e => e.stopPropagation()} className="company-link">{lead.company_name || lead.company || '—'}</a>
+                      : <span>{lead.company_name || lead.company || '—'}</span>
+                    }
+                    {lead.linkedin && (
+                      <a 
+                        href={lead.linkedin.startsWith('http') ? lead.linkedin : `https://${lead.linkedin}`} 
+                        target="_blank" 
+                        rel="noreferrer" 
+                        onClick={e => e.stopPropagation()} 
+                        className="company-linkedin-badge" 
+                        title="View LinkedIn Profile"
+                      >
+                        <Briefcase size={9} /> LinkedIn
+                      </a>
+                    )}
+                  </div>
                 </td>
                 <td className="lead-email">{lead.email}</td>
                 <td><StatusBadge status={lead.status} /></td>
@@ -1190,8 +1416,10 @@ function LeadsPage({ leads, loading, campaign, onLeadClick }) {
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
   const [nicheFilter, setNicheFilter] = useState('all');
+  const [dateFilter, setDateFilter] = useState('all');
+  const [customDate, setCustomDate] = useState('');
 
-  const statuses = ['all', 'new', 'cold_email_sent', 'follow_up_1_sent', 'follow_up_2_sent', 'follow_up_3_sent', 'replied', 'archived', 'bounced'];
+  const statuses = ['all', 'new', 'cold_email_sent', 'follow_up_1_sent', 'follow_up_2_sent', 'follow_up_3_sent', 'replied', 'meeting_booked', 'archived', 'bounced'];
   const niches = ['all', ...new Set(leads.map(l => l.niche_tag || l.niche).filter(Boolean))];
 
   const filtered = leads.filter(l => {
@@ -1202,7 +1430,8 @@ function LeadsPage({ leads, loading, campaign, onLeadClick }) {
       (l.email || '').toLowerCase().includes(search.toLowerCase());
     const matchStatus = statusFilter === 'all' || l.status === statusFilter;
     const matchNiche = nicheFilter === 'all' || l.niche_tag === nicheFilter || l.niche === nicheFilter;
-    return matchSearch && matchStatus && matchNiche;
+    const matchDate = matchesDateFilter(l, dateFilter, customDate);
+    return matchSearch && matchStatus && matchNiche && matchDate;
   });
 
   return (
@@ -1210,11 +1439,11 @@ function LeadsPage({ leads, loading, campaign, onLeadClick }) {
       <div className="page-header">
         <div>
           <h1 className="page-title">All Leads</h1>
-          <p className="page-sub">{campaign ? `Campaign #${campaign.id} · ${campaign.name}` : '—'} · {leads.length} total leads</p>
+          <p className="page-sub">{campaign ? `Campaign #${campaign.id} · ${campaign.name}` : '—'} · {filtered.length} leads displayed</p>
         </div>
       </div>
 
-      <div className="leads-controls">
+      <div className="leads-controls" style={{ flexWrap: 'wrap', gap: 10 }}>
         <div className="leads-search">
           <Search size={13} style={{ opacity: 0.4 }} />
           <input
@@ -1228,17 +1457,23 @@ function LeadsPage({ leads, loading, campaign, onLeadClick }) {
         <select className="leads-filter-select" value={statusFilter} onChange={e => setStatusFilter(e.target.value)}>
           {statuses.map(s => <option key={s} value={s}>{s === 'all' ? 'All Statuses' : s.replace(/_/g, ' ')}</option>)}
         </select>
+        <DateFilterDropdown
+          leads={leads}
+          dateFilter={dateFilter}
+          setDateFilter={setDateFilter}
+          customDate={customDate}
+          setCustomDate={setCustomDate}
+        />
         {niches.length > 1 && (
           <select className="leads-filter-select" value={nicheFilter} onChange={e => setNicheFilter(e.target.value)}>
             {niches.map(n => <option key={n} value={n}>{n === 'all' ? 'All Niches' : n}</option>)}
           </select>
         )}
-        <span className="leads-count">{filtered.length} leads</span>
       </div>
 
-      <div className="glass-card table-card" style={{ marginTop: 0 }}>
+      <SpotlightCard className="glass-card table-card" style={{ marginTop: 16 }}>
         <LeadsTable leads={filtered} loading={loading} onLeadClick={onLeadClick} />
-      </div>
+      </SpotlightCard>
     </motion.div>
   );
 }
@@ -1278,9 +1513,9 @@ function CampaignsPage({ campaigns, selectedCampaignId, onSelect, stats, loading
             {c.niche && <span className="niche-tag" style={{ marginTop: 8, display: 'inline-block' }}>{c.niche}</span>}
             <div className="campaign-card__meta">
               <span>📅 {c.created_at ? new Date(c.created_at).toLocaleDateString() : 'N/A'}</span>
-              {c.id === selectedCampaignId && !loading && (
-                <span>👥 {stats.total} leads</span>
-              )}
+              <span>👥 {c.total_leads || (c.id === selectedCampaignId ? stats.total : 0)} leads</span>
+              <span>🚀 {c.sent_count || 0} sent</span>
+              <span>💬 {c.replied_count || 0} replies ({c.sent_count ? ((c.replied_count / c.sent_count) * 100).toFixed(1) : 0}%)</span>
             </div>
             <button
               className={`campaign-card__btn ${c.id === selectedCampaignId ? 'campaign-card__btn--active' : ''}`}
@@ -1290,6 +1525,242 @@ function CampaignsPage({ campaigns, selectedCampaignId, onSelect, stats, loading
             </button>
           </motion.div>
         ))}
+      </div>
+    </motion.div>
+  );
+}
+
+/* ═══════════════════════════════════════════════════════════
+   ANALYTICS PAGE — ADVANCED DATA VISUALIZATION
+   ═══════════════════════════════════════════════════════════ */
+function AnalyticsPage({ leads = [], campaigns = [] }) {
+  // 1. Niche A/B Warfare
+  const nicheStats = useMemo(() => {
+    if (campaigns && campaigns.length > 0) {
+      return campaigns.map(c => ({
+        name: c.name || c.niche || `Campaign #${c.id}`,
+        total: c.total_leads || 0,
+        replied: c.replied_count || 0,
+        interested: c.interested_count || 0,
+        meetings: c.meeting_booked_count || 0,
+      })).sort((a, b) => b.total - a.total);
+    }
+    const map = {};
+    leads.forEach(l => {
+      const niche = l.niche_tag || l.niche || (l.campaign_id ? `Campaign #${l.campaign_id}` : 'General');
+      if (!map[niche]) map[niche] = { total: 0, replied: 0, interested: 0, meetings: 0 };
+      map[niche].total++;
+      if (l.status === 'replied' || l.status === 'interested' || l.status === 'meeting_booked') map[niche].replied++;
+      if (l.status === 'interested' || l.status === 'meeting_booked') map[niche].interested++;
+      if (l.status === 'meeting_booked') map[niche].meetings++;
+    });
+    return Object.entries(map)
+      .map(([name, data]) => ({ name, ...data }))
+      .sort((a, b) => b.total - a.total);
+  }, [campaigns, leads]);
+
+  const nicheChartData = {
+    labels: nicheStats.map(n => n.name.length > 22 ? n.name.slice(0, 22) + '...' : n.name),
+    datasets: [
+      { label: 'Total Leads', data: nicheStats.map(n => n.total), backgroundColor: 'rgba(255,255,255,0.06)', borderRadius: 4 },
+      { label: 'Replies', data: nicheStats.map(n => n.replied), backgroundColor: 'rgba(6,182,212,0.6)', borderRadius: 4 },
+      { label: 'Interested', data: nicheStats.map(n => n.interested), backgroundColor: 'rgba(139,92,246,0.8)', borderRadius: 4 },
+      { label: 'Meetings', data: nicheStats.map(n => n.meetings), backgroundColor: 'rgba(16,185,129,0.9)', borderRadius: 4 },
+    ]
+  };
+
+  // 2. Sentiment Quality Funnel
+  const sentimentStats = useMemo(() => {
+    let hot = 0, positive = 0, neutral = 0, notInterested = 0;
+    const getScore = (text) => {
+      if (!text) return 'neutral';
+      const t = text.toLowerCase();
+      const pos = ['interest', 'yes', 'call', 'meeting', 'schedule', 'tell me more', 'sounds good', 'let\'s', 'when', 'available', 'book', 'demo', 'love to', 'great', 'perfect'].filter(w => t.includes(w)).length;
+      const neg = ['not interest', 'unsubscribe', 'remove', 'stop', 'no thanks', 'not looking', 'don\'t contact', 'do not'].filter(w => t.includes(w)).length;
+      if (neg > 0) return 'notInterested';
+      if (pos >= 3) return 'hot';
+      if (pos >= 1) return 'positive';
+      return 'neutral';
+    };
+    leads.filter(l => l.status === 'replied' || l.status === 'interested' || l.status === 'meeting_booked').forEach(l => {
+      if (l.status === 'meeting_booked' || l.status === 'interested') { hot++; return; }
+      const intent = getScore(l.reply_message);
+      if (intent === 'hot') hot++;
+      else if (intent === 'positive') positive++;
+      else if (intent === 'notInterested') notInterested++;
+      else neutral++;
+    });
+    return { hot, positive, neutral, notInterested };
+  }, [leads]);
+
+  const sentimentChartData = {
+    labels: ['Hot Leads 🔥', 'Positive', 'Neutral', 'Not Interested'],
+    datasets: [{
+      data: [sentimentStats.hot, sentimentStats.positive, sentimentStats.neutral, sentimentStats.notInterested],
+      backgroundColor: ['rgba(16,185,129,0.9)', 'rgba(6,182,212,0.8)', 'rgba(245,158,11,0.7)', 'rgba(239,68,68,0.7)'],
+      borderColor: 'transparent', hoverOffset: 4
+    }]
+  };
+
+  // 3. Golden Hours Heatmap
+  const heatmapData = useMemo(() => {
+    const grid = {};
+    leads.forEach(l => {
+      if (!l.sent_at && !l.cold_email_sent_at) return;
+      if (!l.replied_at) return;
+      const sentDate = new Date(l.sent_at || l.cold_email_sent_at);
+      const repDate = new Date(l.replied_at);
+      const x = sentDate.getHours();
+      const y = repDate.getHours();
+      const key = `${x},${y}`;
+      grid[key] = (grid[key] || 0) + 1;
+    });
+    const bubbles = [];
+    Object.entries(grid).forEach(([key, count]) => {
+      const [x, y] = key.split(',').map(Number);
+      bubbles.push({ x, y, r: Math.min(25, count * 5 + 4), count });
+    });
+    return bubbles;
+  }, [leads]);
+
+  const heatmapChartData = {
+    datasets: [{
+      label: 'Replies Density',
+      data: heatmapData,
+      backgroundColor: 'rgba(139,92,246,0.6)',
+      borderColor: 'rgba(139,92,246,1)',
+      borderWidth: 1
+    }]
+  };
+
+  const heatmapOpts = {
+    responsive: true, maintainAspectRatio: false,
+    plugins: {
+      legend: { display: false },
+      tooltip: {
+        callbacks: {
+          label: (ctx) => `Sent: ${ctx.raw.x}:00, Replied: ${ctx.raw.y}:00 -> ${ctx.raw.count} Replies`
+        },
+        backgroundColor: 'rgba(7,7,21,0.95)', titleColor: '#F8FAFC', bodyColor: '#94A3B8', padding: 12, cornerRadius: 10
+      }
+    },
+    scales: {
+      x: { title: { display: true, text: 'Sent Time (Hour)', color: '#94A3B8' }, min: -1, max: 24, grid: { color: 'rgba(255,255,255,0.04)' }, ticks: { stepSize: 2, color: '#94A3B8' } },
+      y: { title: { display: true, text: 'Reply Time (Hour)', color: '#94A3B8' }, min: -1, max: 24, grid: { color: 'rgba(255,255,255,0.04)' }, ticks: { stepSize: 2, color: '#94A3B8' } },
+    }
+  };
+
+  const chartOpts = {
+    responsive: true, maintainAspectRatio: false,
+    plugins: { legend: { labels: { color: '#94A3B8' } }, tooltip: { backgroundColor: 'rgba(7,7,21,0.95)', titleColor: '#F8FAFC', bodyColor: '#94A3B8', borderColor: 'rgba(255,255,255,0.08)', borderWidth: 1, padding: 12, cornerRadius: 10 } },
+    scales: {
+      y: { beginAtZero: true, grid: { color: 'rgba(255,255,255,0.04)' }, ticks: { color: '#475569', precision: 0 }, border: { display: false } },
+      x: { grid: { display: false }, ticks: { color: '#475569' }, border: { display: false } },
+    },
+  };
+
+  // 4. Reply Step Attribution Matrix
+  const replyAttributionStats = useMemo(() => {
+    const map = { 'Cold Email': 0, 'Follow-up 1': 0, 'Follow-up 2': 0, 'Follow-up 3': 0 };
+    leads.filter(l => l.status === 'replied' || l.replied_at || l.status === 'interested' || l.status === 'meeting_booked').forEach(l => {
+      const step = getRepliedStep(l);
+      if (map[step] !== undefined) map[step]++;
+      else map['Cold Email']++;
+    });
+    return map;
+  }, [leads]);
+
+  const replyAttributionChartData = {
+    labels: ['Cold Email 📧', 'Follow-up 1 ⚡', 'Follow-up 2 💥', 'Follow-up 3 🎯'],
+    datasets: [{
+      label: 'Replies Generated',
+      data: [replyAttributionStats['Cold Email'], replyAttributionStats['Follow-up 1'], replyAttributionStats['Follow-up 2'], replyAttributionStats['Follow-up 3']],
+      backgroundColor: ['rgba(139,92,246,0.8)', 'rgba(245,158,11,0.8)', 'rgba(236,72,153,0.8)', 'rgba(16,185,129,0.8)'],
+      borderRadius: 6
+    }]
+  };
+
+  const pieOpts = {
+    responsive: true, maintainAspectRatio: false,
+    plugins: { legend: { position: 'right', labels: { color: '#94A3B8', usePointStyle: true, padding: 20 } }, tooltip: { backgroundColor: 'rgba(7,7,21,0.95)', titleColor: '#F8FAFC', bodyColor: '#94A3B8', padding: 12, cornerRadius: 10 } },
+    cutout: '65%'
+  };
+
+  const geoStats = useMemo(() => {
+    const map = {};
+    leads.filter(l => l.location).forEach(l => {
+      map[l.location] = (map[l.location] || 0) + 1;
+    });
+    return Object.entries(map).map(([loc, count]) => ({ loc, count })).sort((a, b) => b.count - a.count);
+  }, [leads]);
+
+  return (
+    <motion.div className="content" initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 0.3 }}>
+      <div className="page-header" style={{ marginBottom: 24 }}>
+        <div>
+          <h1 className="page-title">Advanced Analytics</h1>
+          <p className="page-sub">Next-dimension data visualization for your B2B machine</p>
+        </div>
+      </div>
+
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 20 }}>
+        
+        <SpotlightCard className="glass-card" style={{ gridColumn: '1 / -1' }}>
+          <div className="card-title">⚔️ Niche A/B Warfare</div>
+          <div className="card-subtitle">Compare performance and conversion velocity across your target niches</div>
+          <div style={{ height: 280, marginTop: 16 }}>
+            {nicheStats.length > 0 ? (
+              <Bar data={nicheChartData} options={chartOpts} />
+            ) : <div className="empty-state" style={{ height: '100%', display:'flex', alignItems:'center', justifyContent:'center'}}>Not enough data yet</div>}
+          </div>
+        </SpotlightCard>
+
+        <SpotlightCard className="glass-card" style={{ gridColumn: '1 / -1' }}>
+          <div className="card-title">🎯 Reply Attribution Matrix (مصدر الردود)</div>
+          <div className="card-subtitle">Exact breakdown of which email touchpoint triggered client replies across your campaigns</div>
+          <div style={{ height: 260, marginTop: 16 }}>
+            <Bar data={replyAttributionChartData} options={chartOpts} />
+          </div>
+        </SpotlightCard>
+
+        <SpotlightCard className="glass-card">
+          <div className="card-title">⏰ Golden Hours Heatmap</div>
+          <div className="card-subtitle">Correlation between Email Sent Time and Reply Time</div>
+          <div style={{ height: 240, marginTop: 16 }}>
+            {heatmapData.length > 0 ? (
+              <Bubble data={heatmapChartData} options={heatmapOpts} />
+            ) : <div className="empty-state" style={{ height: '100%', display:'flex', alignItems:'center', justifyContent:'center'}}>Waiting for reply data...</div>}
+          </div>
+        </SpotlightCard>
+
+        <SpotlightCard className="glass-card">
+          <div className="card-title">🧠 Sentiment Quality Funnel</div>
+          <div className="card-subtitle">AI analysis of reply intent to gauge copy effectiveness</div>
+          <div style={{ height: 240, marginTop: 16 }}>
+            {(sentimentStats.hot + sentimentStats.positive + sentimentStats.neutral + sentimentStats.notInterested) > 0 ? (
+              <Doughnut data={sentimentChartData} options={pieOpts} />
+            ) : <div className="empty-state" style={{ height: '100%', display:'flex', alignItems:'center', justifyContent:'center'}}>Waiting for reply data...</div>}
+          </div>
+        </SpotlightCard>
+
+        <SpotlightCard className="glass-card" style={{ gridColumn: '1 / -1' }}>
+          <div className="card-title">🌍 Geographic Hit Rate</div>
+          <div className="card-subtitle">Top performing locations across outreach campaigns</div>
+          <div style={{ marginTop: 16, display: 'flex', gap: 12, flexWrap: 'wrap' }}>
+            {geoStats.length > 0 ? (
+              geoStats.map(g => (
+                <div key={g.loc} style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid var(--border)', padding: '12px 16px', borderRadius: 12, minWidth: 160 }}>
+                  <div style={{ fontSize: 16, fontWeight: 600, color: 'var(--text-1)' }}>{g.count} <span style={{fontSize: 12, fontWeight: 400, color: 'var(--text-3)'}}>Leads</span></div>
+                  <div style={{ fontSize: 13, color: 'var(--text-2)', marginTop: 4 }}>📍 {g.loc}</div>
+                </div>
+              ))
+            ) : (
+              <div style={{ color: 'var(--text-3)', fontSize: 13, fontStyle: 'italic', padding: 16, background: 'rgba(255,255,255,0.02)', borderRadius: 12, width: '100%', textAlign: 'center' }}>
+                Geographic tracking initialized. Awaiting leads with location data.
+              </div>
+            )}
+          </div>
+        </SpotlightCard>
       </div>
     </motion.div>
   );
@@ -1740,7 +2211,13 @@ function MainDashboard() {
   const [campaign, setCampaign] = useState(null);
   const [stats, setStats] = useState({ total: 0, sent: 0, followups: 0, replied: 0, interested: 0, meeting_booked: 0, archived: 0, new: 0, bounced: 0 });
   const [leads, setLeads] = useState([]);
+  const [allLeads, setAllLeads] = useState([]);
   const [selectedLead, setSelectedLead] = useState(null);
+
+  const fetchAllLeads = useCallback(async () => {
+    const { data } = await supabase.from('komodo_leads').select('*').order('id', { ascending: false });
+    if (data) setAllLeads(data);
+  }, []);
 
   useEffect(() => {
     (async () => {
@@ -1749,8 +2226,9 @@ function MainDashboard() {
         setCampaigns(data);
         setSelectedCampaignId(data[0].id);
       }
+      fetchAllLeads();
     })();
-  }, []);
+  }, [fetchAllLeads]);
 
   const loadCampaignData = useCallback(async (cid, isRefresh = false) => {
     if (!cid) return;
@@ -1762,21 +2240,34 @@ function MainDashboard() {
     const { data, error } = await supabase.from('komodo_leads').select('*').eq('campaign_id', cid).order('id', { ascending: false });
     if (error) console.error(error);
     if (data) {
+      const campTotal = camp?.total_leads ?? data.length;
+      const campSent = camp?.sent_count ?? data.filter(l => l.status === 'cold_email_sent' || l.status === 'sent').length;
+      const campFollowups = camp?.followups_count ?? data.filter(l => ['follow_up_1_sent', 'follow_up_2_sent', 'follow_up_3_sent', 'followup_1', 'followup_2', 'followup_3'].includes(l.status)).length;
+      const campReplied = camp?.replied_count ?? data.filter(l => l.status === 'replied').length;
+      const campInterested = camp?.interested_count ?? data.filter(l => l.status === 'interested').length;
+      const campMeetingBooked = camp?.meeting_booked_count ?? data.filter(l => l.status === 'meeting_booked').length;
+      const campArchived = camp?.archived_count ?? data.filter(l => l.status === 'archived').length;
+
       setStats({
-        total: data.length,
-        new: data.filter(l => l.status === 'new').length,
-        sent: data.filter(l => l.status === 'cold_email_sent' || l.status === 'sent').length,
-        followups: data.filter(l => ['follow_up_1_sent', 'follow_up_2_sent', 'follow_up_3_sent', 'followup_1', 'followup_2', 'followup_3'].includes(l.status)).length,
-        replied: data.filter(l => l.status === 'replied').length,
-        archived: data.filter(l => l.status === 'archived').length,
+        total: campTotal,
+        new: Math.max(0, campTotal - campSent),
+        sent: campSent,
+        followups: campFollowups,
+        replied: campReplied,
+        archived: campArchived,
         bounced: data.filter(l => l.status === 'bounced').length,
-        interested: data.filter(l => l.status === 'interested').length,
-        meeting_booked: data.filter(l => l.status === 'meeting_booked').length,
+        interested: campInterested,
+        meeting_booked: campMeetingBooked,
       });
       setLeads(data);
     }
-    if (isRefresh) setRefreshing(false); else setLoading(false);
-  }, []);
+    if (isRefresh) {
+      fetchAllLeads();
+      setRefreshing(false);
+    } else {
+      setLoading(false);
+    }
+  }, [fetchAllLeads]);
 
   useEffect(() => {
     if (selectedCampaignId) loadCampaignData(selectedCampaignId);
@@ -1792,10 +2283,11 @@ function MainDashboard() {
         table: 'komodo_leads'
       }, () => {
         if (selectedCampaignId) loadCampaignData(selectedCampaignId, true);
+        fetchAllLeads();
       })
       .subscribe();
     return () => supabase.removeChannel(channel);
-  }, [selectedCampaignId, loadCampaignData]);
+  }, [selectedCampaignId, loadCampaignData, fetchAllLeads]);
 
   const handleCampaignChange = (id) => {
     setSelectedCampaignId(id);
@@ -1811,7 +2303,7 @@ function MainDashboard() {
       case 'campaigns':
         return <CampaignsPage campaigns={campaigns} selectedCampaignId={selectedCampaignId} onSelect={handleCampaignChange} stats={stats} loading={loading} />;
       case 'analytics':
-        return <ComingSoonPage icon={<BarChart2 size={40} />} title="Analytics" desc="Deep dive into open rates, click rates, reply rates, and campaign performance over time. Connected to your n8n workflows." />;
+        return <AnalyticsPage leads={allLeads.length > 0 ? allLeads : leads} campaigns={campaigns} />;
       case 'inbox':
         return <InboxPage />;
       case 'agents':
