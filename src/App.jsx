@@ -1,7 +1,7 @@
 import React, { useEffect, useRef, useState, useCallback, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
-  LayoutDashboard, Users, Send, Inbox, Settings,
+  LayoutDashboard, Users, Send, Inbox, LifeBuoy,
   Cpu, Zap, BarChart2, TrendingUp, Activity, Bot,
   ChevronDown, Search, RefreshCw, Filter, Tag, Mail, X, Clock, Building2,
   ExternalLink, Globe, Briefcase, Target, ChevronRight, CheckCircle2, Circle, Terminal,
@@ -641,24 +641,32 @@ function Sidebar({ activePage, onNavigate }) {
   const sysItems = [
     { l: 'AI Agents', i: <Bot size={15} />, page: 'agents' },
     { l: 'Automations', i: <Cpu size={15} />, page: 'automations' },
-    { l: 'Settings', i: <Settings size={15} />, page: 'settings' },
+    { 
+      l: 'Support', 
+      i: <LifeBuoy size={15} />, 
+      action: () => {
+        const subject = encodeURIComponent('[Komodo Systems] Executive Support Request');
+        const body = encodeURIComponent("Hi Voxora Team,\n\n[Type your message / request here...]\n\n\n—\nKomodo Systems");
+        window.location.href = `mailto:support.Komodo@voxora.agency?subject=${subject}&body=${body}`;
+      } 
+    },
   ];
 
   return (
     <motion.div className="sidebar" initial={{ x: -20, opacity: 0 }} animate={{ x: 0, opacity: 1 }} transition={{ duration: 0.4 }}>
-      <div className="sidebar-logo" style={{ marginBottom: 28, marginTop: 4, gap: 11 }}>
-        <div className="logo-icon-glass" style={{ borderColor: 'rgba(245, 158, 11, 0.3)', background: 'rgba(245, 158, 11, 0.08)' }}>
-          <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" style={{ color: '#f59e0b' }}>
+      <div className="sidebar-logo" style={{ marginBottom: 34, marginTop: 4, gap: 10 }}>
+        <div className="logo-icon-glass">
+          <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" style={{ color: '#A78BFA' }}>
             <path d="M4 4l8 16 8-16" />
           </svg>
         </div>
         <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
             <span className="logo-text">VOXORA</span>
-            <span style={{ fontSize: 9, color: 'rgba(255,255,255,0.35)', fontWeight: 600 }}>×</span>
-            <span style={{ fontSize: 10.5, fontWeight: 700, color: '#f59e0b', letterSpacing: '0.06em' }}>KOMODO</span>
+            <span style={{ fontSize: 10, color: 'var(--text-3)', opacity: 0.5 }}>|</span>
+            <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--text-1)', letterSpacing: '0.06em' }}>KOMODO</span>
           </div>
-          <span className="logo-subtext" style={{ color: '#5dcaa5', letterSpacing: '0.12em' }}>KOMODO EYE® TELEMETRY</span>
+          <span className="logo-subtext">EXECUTIVE PORTAL</span>
         </div>
       </div>
       <span className="nav-section-label">Navigation</span>
@@ -669,16 +677,22 @@ function Sidebar({ activePage, onNavigate }) {
       ))}
       <span className="nav-section-label" style={{ marginTop: 24 }}>System</span>
       {sysItems.map(x => (
-        <div key={x.l} className={`nav-item ${activePage === x.page ? 'active' : ''}`} onClick={() => onNavigate(x.page)}>
+        <div 
+          key={x.l} 
+          className={`nav-item ${activePage === x.page ? 'active' : ''}`} 
+          onClick={() => x.action ? x.action() : onNavigate(x.page)}
+        >
           <span className="nav-icon">{x.i}</span>{x.l}
         </div>
       ))}
       <div className="sidebar-bottom">
-        <div className="user-card" style={{ border: '1px solid rgba(245, 158, 11, 0.2)', background: 'rgba(245, 158, 11, 0.04)' }}>
-          <div className="user-avatar" style={{ background: 'linear-gradient(135deg, #f59e0b, #d97706)', color: '#0b0c10', fontWeight: 800 }}>R</div>
+        <div className="user-card">
+          <div className="user-avatar">R</div>
           <div className="user-info">
-            <div className="user-name" style={{ color: '#fff', fontSize: 12 }}>Russ Warner</div>
-            <div className="user-role" style={{ color: '#5dcaa5', fontSize: 10 }}>President & COO · Komodo</div>
+            <div className="user-name">Russ Warner</div>
+            <div className="user-role" style={{ fontSize: '10px', lineHeight: '1.25', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }} title="President & Chief Operating Officer">
+              President & Chief Operating Officer
+            </div>
           </div>
         </div>
       </div>
@@ -1717,8 +1731,6 @@ function MainDashboard() {
         return <ComingSoonPage icon={<Bot size={40} />} title="AI Agents" desc="Configure and monitor your AI agents — reply detection, follow-up engine, archive cleaner, and more." />;
       case 'automations':
         return <ComingSoonPage icon={<Cpu size={40} />} title="Automations" desc="Manage your n8n workflows, triggers, and automation sequences directly from this panel." />;
-      case 'settings':
-        return <ComingSoonPage icon={<Settings size={40} />} title="Settings" desc="Manage your account, connected inboxes, API keys, and team members." />;
       default:
         return null;
     }
